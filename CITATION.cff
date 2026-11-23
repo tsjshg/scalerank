@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use ScaleRank, please cite it as below."
+title: "ScaleRank: dimensionality reduction that preserves neighbour ranks over a range of scales"
+type: software
+authors:
+  - family-names: Tsuji
+    given-names: Shingo
+    orcid: "https://orcid.org/0000-0002-0234-9519"
+abstract: >-
+  ScaleRank makes maps you can read at every scale: the neighbourhoods inside
+  each cluster, and how the clusters sit relative to each other. It preserves
+  neighbour ranks over a range of neighbourhood sizes K, sampled with
+  probability proportional to K^-gamma, without N x N structures, and has an
+  optional densMAP-style density term. Rust core with a Python package
+  (scalerank on PyPI).
+keywords:
+  - dimensionality reduction
+  - visualisation
+  - embedding
+  - single-cell
+license: BSD-3-Clause
+repository-code: "https://github.com/tsjshg/scalerank"
+url: "https://tsjshg.github.io/scalerank-web/"
+version: 0.1.1
+date-released: "2026-11-23"
