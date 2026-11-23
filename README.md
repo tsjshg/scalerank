@@ -2,6 +2,8 @@
 
 [日本語](README_ja.md)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24462269.svg)](https://doi.org/10.5281/zenodo.24462269)
+
 **Maps you can read at every scale: the neighbourhoods inside each cluster,
 and how the clusters sit relative to each other.**
 

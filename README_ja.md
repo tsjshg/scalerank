@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24462269.svg)](https://doi.org/10.5281/zenodo.24462269)
+
 **クラスタの中も、クラスタどうしの関係も読める地図。**
 
 t-SNE や UMAP は各点のすぐ近くの近傍を保ちます。ただし、その地図でクラスタ間の距離や並び方を読んではいけない、と指摘されています（[Chari & Pachter 2023](https://doi.org/10.1371/journal.pcbi.1011288)）。PCA は並び方を保ちますが、近傍はぼやけます。ScaleRank はその両方を保ちます。

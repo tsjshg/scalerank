@@ -19,6 +19,7 @@ keywords:
   - embedding
   - single-cell
 license: BSD-3-Clause
+doi: 10.5281/zenodo.24462269
 repository-code: "https://github.com/tsjshg/scalerank"
 url: "https://tsjshg.github.io/scalerank-web/"
 version: 0.1.1
