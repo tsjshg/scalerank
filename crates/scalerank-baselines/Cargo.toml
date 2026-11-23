@@ -4,6 +4,7 @@ description = "UMAP and Barnes-Hut t-SNE on scalerank's kNN and PCA, for compari
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 repository.workspace = true
 publish = false
 

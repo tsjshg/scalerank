@@ -6,6 +6,7 @@ members = ["crates/scalerank", "crates/scalerank-baselines", "crates/scalerank-p
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
+license = "BSD-3-Clause"
 repository = "https://github.com/tsjshg/scalerank"
 
 [profile.release]
