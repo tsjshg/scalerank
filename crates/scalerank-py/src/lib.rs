@@ -43,6 +43,8 @@ struct ScaleRankFast {
     loss_history_: Vec<f64>,
     #[pyo3(get)]
     table_len_: f64,
+    #[pyo3(get)]
+    dens_corr_: f64,
 }
 
 #[pymethods]
@@ -52,7 +54,8 @@ impl ScaleRankFast {
         gamma=1.0, k0=None, width=1.0, n_components=2, n_epochs=800, per_point=8, n_neg=20,
         lr=1.0, init="pca", init_scale=1.0, kmax=100, n_cand=64, pool_ratio=4.0,
         pool_per_level=16, fresh_min=4.0, pool_stopgrad=true, neg_scale=0.0, block=16,
-        random_state=None, verbose=false
+        random_state=None, verbose=false, dens_lambda=0.0, dens_frac=0.3, dens_k=30,
+        dens_own=false, dens_refresh=10
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -76,6 +79,11 @@ impl ScaleRankFast {
         block: usize,
         random_state: Option<u64>,
         verbose: bool,
+        dens_lambda: f64,
+        dens_frac: f64,
+        dens_k: usize,
+        dens_own: bool,
+        dens_refresh: usize,
     ) -> PyResult<Self> {
         let init = parse_init(init)?;
         let params = Params {
@@ -98,16 +106,37 @@ impl ScaleRankFast {
             neg_scale,
             block,
             seed: seed_or_clock(random_state),
+            dens_lambda,
+            dens_frac,
+            dens_k,
+            dens_target: None,
+            dens_own,
+            dens_refresh,
         };
-        Ok(ScaleRankFast { params, verbose, loss_history_: Vec::new(), table_len_: 0.0 })
+        Ok(ScaleRankFast { params, verbose, loss_history_: Vec::new(), table_len_: 0.0, dens_corr_: f64::NAN })
     }
 
-    fn fit_transform<'py>(&mut self, py: Python<'py>, x: PyReadonlyArray2<'py, f64>) -> PyResult<Bound<'py, PyArray2<f64>>> {
+    /// `dens_target`: local log radii (one per point) for the density term,
+    /// instead of the ones measured in `x`.
+    #[pyo3(signature = (x, dens_target=None))]
+    fn fit_transform<'py>(
+        &mut self,
+        py: Python<'py>,
+        x: PyReadonlyArray2<'py, f64>,
+        dens_target: Option<PyReadonlyArray1<'py, f64>>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let (data, n, d) = to_f32(&x);
         if n < 4 {
             return Err(PyValueError::new_err("need at least 4 points"));
         }
-        let params = self.params.clone();
+        let mut params = self.params.clone();
+        if let Some(t) = dens_target {
+            let t = t.as_array().to_vec();
+            if t.len() != n {
+                return Err(PyValueError::new_err("dens_target needs one value per row of x"));
+            }
+            params.dens_target = Some(t);
+        }
         let verbose = self.verbose;
         let fit = py.detach(|| {
             scalerank_core::fit(&Points::new(&data, n, d), &params, |pr| {
@@ -119,6 +148,7 @@ impl ScaleRankFast {
         });
         self.loss_history_ = fit.loss_history;
         self.table_len_ = fit.table_len;
+        self.dens_corr_ = fit.dens_corr;
         let nc = params.n_components;
         let y = Array2::from_shape_vec((n, nc), fit.embedding).expect("shape");
         Ok(y.into_pyarray(py))

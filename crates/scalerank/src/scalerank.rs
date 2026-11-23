@@ -11,6 +11,10 @@
 //!   weighted by the points they stand for), above it from the fresh
 //!   candidates.  Pool landmarks get no gradient (`pool_stopgrad`), otherwise
 //!   a few landmarks would be dragged by a large share of the data.
+//! * Optionally (`dens_lambda` > 0, after densMAP, Narayan et al. 2021) the
+//!   last `dens_frac` of the epochs also maximise the Pearson correlation of
+//!   local log radii between input and embedding.  Ranks are invariant to
+//!   the local scale, so the rank loss alone keeps no density information.
 
 use crate::knn::{Knn, knn_exact};
 use crate::par;
@@ -52,6 +56,18 @@ pub struct Params {
     pub neg_scale: f64,
     pub block: usize,
     pub seed: u64,
+    /// weight of the density term, loss -dens_lambda * n * corr(r_emb, r_in); 0 = off
+    pub dens_lambda: f64,
+    /// share of the epochs (the last ones) that use the density term
+    pub dens_frac: f64,
+    /// neighbours that define the local radius r_i = ln(mean_j d_ij^2)
+    pub dens_k: usize,
+    /// target radii (one per point) instead of the ones measured in the input
+    pub dens_target: Option<Vec<f64>>,
+    /// measure the embedding's radii over its own `dens_k` nearest neighbours,
+    /// recomputed every `dens_refresh` epochs, instead of the input's
+    pub dens_own: bool,
+    pub dens_refresh: usize,
 }
 
 impl Default for Params {
@@ -76,6 +92,12 @@ impl Default for Params {
             neg_scale: 0.0,
             block: 16,
             seed: 0,
+            dens_lambda: 0.0,
+            dens_frac: 0.3,
+            dens_k: 30,
+            dens_target: None,
+            dens_own: false,
+            dens_refresh: 10,
         }
     }
 }
@@ -109,6 +131,8 @@ pub struct Fit {
     pub loss_history: Vec<f64>,
     /// mean number of rank-table entries per point
     pub table_len: f64,
+    /// corr(r_emb, r_in) at the end (NaN without the density term)
+    pub dens_corr: f64,
 }
 
 const MAX_COMPONENTS: usize = 8;
@@ -156,6 +180,9 @@ pub fn fit_with_knn(p: &Points, knn: &Knn, params: &Params, mut on_epoch: impl F
     let r_pool = (kmax as f64).max(params.fresh_min * n as f64 / params.n_cand as f64);
     let table = RankTable::build(p, knn, kmax, r_pool, params.pool_ratio, params.pool_per_level, &mut rng);
     let mut y = initial_layout(p, params, &mut rng);
+    let mut dens = (params.dens_lambda > 0.0).then(|| Density::new(knn, params));
+    let dens_start = ((1.0 - params.dens_frac.clamp(0.0, 1.0)) * params.n_epochs as f64).floor() as usize;
+    let mut dens_corr = f64::NAN;
 
     let ctx = Ctx { p, table: &table, cdf: &cdf, params, kmax, r_pool: r_pool as f32 };
     let (b1, b2, eps) = (0.9f64, 0.999f64, 1e-8);
@@ -187,11 +214,21 @@ pub fn fit_with_knn(p: &Points, knn: &Knn, params: &Params, mut on_epoch: impl F
             loss += l;
             groups += k;
         }
+        let inv = 1.0 / params.per_point as f64;
+        g.iter_mut().for_each(|v| *v *= inv);
+        if let Some(d) = &mut dens
+            && t > dens_start
+        {
+            if params.dens_own && (t - dens_start - 1).is_multiple_of(params.dens_refresh.max(1)) {
+                let yf: Vec<f32> = y.iter().map(|&v| v as f32).collect();
+                d.set_neighbours(&knn_exact(&Points::new(&yf, n, nc), None, d.k.min(n - 2)));
+            }
+            dens_corr = d.grad(&y, nc, params.dens_lambda, &mut g);
+        }
         let step = params.lr * (1.0 - (t - 1) as f64 / params.n_epochs as f64);
         let (c1, c2) = (1.0 - b1.powi(t as i32), 1.0 - b2.powi(t as i32));
-        let inv = 1.0 / params.per_point as f64;
         for k in 0..n * nc {
-            let gk = g[k] * inv;
+            let gk = g[k];
             mom[k] = b1 * mom[k] + (1.0 - b1) * gk;
             vel[k] = b2 * vel[k] + (1.0 - b2) * gk * gk;
             y[k] -= step * (mom[k] / c1) / ((vel[k] / c2).sqrt() + eps);
@@ -202,7 +239,105 @@ pub fn fit_with_knn(p: &Points, knn: &Knn, params: &Params, mut on_epoch: impl F
             break;
         }
     }
-    Fit { embedding: y, loss_history, table_len: table.mean_len() }
+    Fit { embedding: y, loss_history, table_len: table.mean_len(), dens_corr }
+}
+
+/// Density term: r_i = ln(mean_j |y_i - y_j|^2) over the input's `dens_k`
+/// nearest neighbours j, pulled towards the input's radii in correlation.
+pub struct Density {
+    k: usize,
+    nbr: Vec<u32>,
+    /// standardised target radii
+    t: Vec<f64>,
+}
+
+impl Density {
+    pub fn new(knn: &Knn, params: &Params) -> Self {
+        let n = knn.ids.len() / knn.k;
+        let k = params.dens_k.clamp(1, knn.k);
+        let mut nbr = Vec::with_capacity(n * k);
+        let mut t = Vec::with_capacity(n);
+        for i in 0..n {
+            nbr.extend_from_slice(&knn.ids(i)[..k]);
+            let s: f64 = knn.dist(i)[..k].iter().map(|&d| d as f64 * d as f64).sum();
+            t.push((s / k as f64).max(1e-300).ln());
+        }
+        if let Some(tt) = &params.dens_target {
+            assert_eq!(tt.len(), n, "dens_target needs one value per point");
+            t.clone_from(tt);
+        }
+        standardise(&mut t);
+        Density { k, nbr, t }
+    }
+
+    /// Measures the radii over these neighbour lists from now on (the first
+    /// `k` of each row).
+    pub fn set_neighbours(&mut self, knn: &Knn) {
+        let k = self.k.min(knn.k);
+        let n = self.t.len();
+        self.nbr.clear();
+        for i in 0..n {
+            self.nbr.extend_from_slice(&knn.ids(i)[..k]);
+        }
+        self.k = k;
+    }
+
+    /// Adds the gradient of -lambda * n * corr(r, t) to `g`; returns corr.
+    pub fn grad(&self, y: &[f64], nc: usize, lambda: f64, g: &mut [f64]) -> f64 {
+        let (n, k) = (self.t.len(), self.k);
+        let ranges = par::ranges(n);
+        let sums: Vec<f64> = par::map_collect(ranges.len(), |c| {
+            ranges[c].clone().map(|i| self.sum_sq(y, nc, i)).collect::<Vec<f64>>()
+        })
+        .concat();
+        let r: Vec<f64> = sums.iter().map(|&s| (s / k as f64).max(1e-300).ln()).collect();
+        let nf = n as f64;
+        let mean = r.iter().sum::<f64>() / nf;
+        let var = r.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / nf;
+        let sd = var.sqrt().max(1e-12);
+        let corr = r.iter().zip(&self.t).map(|(v, t)| (v - mean) * t).sum::<f64>() / (nf * sd);
+        // d(-lambda n corr)/d r_i = -lambda (t_i - corr (r_i - mean) / sd) / sd
+        let parts = par::map_collect(ranges.len(), |c| {
+            let mut gp = vec![0f64; n * nc];
+            for i in ranges[c].clone() {
+                let a = -lambda * (self.t[i] - corr * (r[i] - mean) / sd) / sd;
+                let a = 2.0 * a / sums[i].max(1e-300);
+                for &j in &self.nbr[i * k..(i + 1) * k] {
+                    let j = j as usize;
+                    for d in 0..nc {
+                        let v = a * (y[i * nc + d] - y[j * nc + d]);
+                        gp[i * nc + d] += v;
+                        gp[j * nc + d] -= v;
+                    }
+                }
+            }
+            gp
+        });
+        for gp in parts {
+            g.iter_mut().zip(gp).for_each(|(a, b)| *a += b);
+        }
+        corr
+    }
+
+    fn sum_sq(&self, y: &[f64], nc: usize, i: usize) -> f64 {
+        self.nbr[i * self.k..(i + 1) * self.k]
+            .iter()
+            .map(|&j| (0..nc).map(|d| (y[i * nc + d] - y[j as usize * nc + d]).powi(2)).sum::<f64>())
+            .sum()
+    }
+
+    /// -lambda * n * corr, for tests.
+    pub fn loss(&self, y: &[f64], nc: usize, lambda: f64) -> f64 {
+        let mut dump = vec![0f64; y.len()];
+        -lambda * self.t.len() as f64 * self.grad(y, nc, lambda, &mut dump)
+    }
+}
+
+fn standardise(v: &mut [f64]) {
+    let n = v.len() as f64;
+    let m = v.iter().sum::<f64>() / n;
+    let sd = (v.iter().map(|x| (x - m).powi(2)).sum::<f64>() / n).sqrt().max(1e-12);
+    v.iter_mut().for_each(|x| *x = (*x - m) / sd);
 }
 
 struct Ctx<'a> {
@@ -338,6 +473,28 @@ pub fn group_grad(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn density_gradient_matches_finite_differences() {
+        let mut r = Rng::new(3);
+        let (n, nc, d) = (30, 2, 5);
+        let x: Vec<f32> = (0..n * d).map(|_| r.normal() as f32).collect();
+        let p = Points::new(&x, n, d);
+        let knn = knn_exact(&p, None, 6);
+        let params = Params { dens_k: 5, ..Params::default() };
+        let dens = Density::new(&knn, &params);
+        let y: Vec<f64> = (0..n * nc).map(|_| r.normal()).collect();
+        let mut g = vec![0f64; n * nc];
+        dens.grad(&y, nc, 1.5, &mut g);
+        let eps = 1e-6;
+        for k in 0..n * nc {
+            let (mut yp, mut ym) = (y.clone(), y.clone());
+            yp[k] += eps;
+            ym[k] -= eps;
+            let num = (dens.loss(&yp, nc, 1.5) - dens.loss(&ym, nc, 1.5)) / (2.0 * eps);
+            assert!((g[k] - num).abs() < 1e-5 * (1.0 + num.abs()), "coordinate {k}: {} vs {num}", g[k]);
+        }
+    }
 
     #[test]
     fn profile_shapes() {
