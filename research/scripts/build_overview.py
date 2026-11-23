@@ -148,6 +148,35 @@ def stability_data():
     return {"methods": out, "rho": rho}
 
 
+# Seed comparison figure: the same data, seeds 0-2, UMAP against ScaleRank
+SEEDCMP = {"umap": "umap", "sr": "scalerank_rs:gamma=1.0"}
+SEEDCMP_DATA = {"hier_blobs": "labels_coarse", "kolodziejczyk": "labels"}
+
+
+def align_to(Y, ref):
+    """Rotate/reflect Y (centred) onto ref (centred) by orthogonal Procrustes, so the
+    panels differ only in what the seed changed, not in orientation."""
+    from scipy.linalg import orthogonal_procrustes
+
+    a, b = Y - Y.mean(0), ref - ref.mean(0)
+    R, _ = orthogonal_procrustes(a, b)
+    return a @ R
+
+
+def seed_compare_data():
+    st = pd.read_csv(RESULTS_DIR / "stability.csv")
+    st = st[st.experiment == "seed"]
+    out = {}
+    for ds, lab_attr in SEEDCMP_DATA.items():
+        d = datasets.load(ds)
+        out[ds] = {"labels": getattr(d, lab_attr).astype(int).tolist(), "names": list(d.label_names or []), "emb": {}, "dist": {}}
+        for key, sp in SEEDCMP.items():
+            Ys = [np.load(_paths(ds, sp, s)["emb"]) for s in (0, 1, 2)]
+            out[ds]["emb"][key] = [unit_square(Ys[0] - Ys[0].mean(0))] + [unit_square(align_to(Y, Ys[0])) for Y in Ys[1:]]
+            out[ds]["dist"][key] = round(float(st[(st.dataset == ds) & (st.method == sp)].dist.mean()), 2)
+    return out
+
+
 OP_DIR = ROOT / "results" / "openproblems"
 OP_DATA = ["mouse_blood_olsson_labelled", "mouse_hspc_nestorowa2016", "pancreas", "zebrafish"]
 OP_CONTROLS = ["random_features", "spectral_features", "true_features"]
@@ -314,6 +343,7 @@ def main():
         "stability": stability_data(),
         "op": openproblems_data(),
         "dens": density_data(table),
+        "seedcmp": seed_compare_data(),
     }
     payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")
     args.out.mkdir(parents=True, exist_ok=True)

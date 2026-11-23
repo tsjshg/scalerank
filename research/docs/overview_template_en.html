@@ -123,6 +123,9 @@ svg .zero { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1rem; }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: 0.9rem 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem 0.8rem; margin: 0.3rem 0 1rem; }
+.row-head { font-size: 0.9rem; font-weight: 700; color: var(--ink); margin-top: 0.4rem; }
+.row-head .mini-sub { margin-left: 0.4rem; }
 .grid-2 > *, .grid-4 > * { min-width: 0; }
 .mini-title { font-size: 0.85rem; font-weight: 700; color: var(--ink); margin-bottom: 0.15rem; }
 .mini-sub { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
@@ -691,6 +694,17 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="col">
     <p>t-SNE and UMAP can give a different result every time they run. Fixing the seed makes the picture repeat, but that only fixes the random numbers: shuffling the rows is enough to get a different picture. PCA, by contrast, always returns the same answer.</p>
     <p>So I made maps of the same data with different seeds (0, 1, 2) and with the rows in different orders (3 permutations), and measured on the 8 datasets how well the maps agree with each other. Global agreement is the rank correlation of distances in the two maps; local agreement is the share of each point's 10 nearest neighbours that the two maps share. Both are 1 for identical maps.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">Data:</span><div class="seg" id="seedcmp-ds" role="group" aria-label="Switch the dataset"></div></div>
+      <div id="fig-seedcmp"></div>
+      <div class="legend" id="fig-seedcmp-legend"></div>
+      <figcaption><b>Figure 22.</b> The same data drawn three times, changing only the seed (top: UMAP; bottom: ScaleRank γ=1, Rust version). Seeds 1 and 2 are rotated and reflected onto seed 0, so orientation does not mislead. hier_blobs is synthetic, with 3 large clusters × 4 small clusters; colour is the large cluster. Kolodziejczyk is 704 mouse ES cells; colour is one of 3 culture conditions.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>Reading how clusters sit relative to each other in a UMAP map gives different answers for different seeds (Figure 22). In the UMAP maps of hier_blobs, the small clusters of one large cluster are scattered across the map, and which ones sit next to each other changes with the seed. In ScaleRank's maps the colours stay together and the layout stays put in all three runs. The real Kolodziejczyk data show the same tendency, with a smaller difference. Table 8 counts this over the 8 datasets.</p>
   </div>
   <div class="wide">
     <figure class="panel">
@@ -1751,6 +1765,40 @@ const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Mat
   const keys = ['rnx@10', 'auc_rnx', 'dist_spearman', 'density_corr', 'knn_acc'];
   document.getElementById('dens-table').innerHTML = rows.filter(([k]) => E[k]).map(([k, name]) =>
     `<tr class="${k === 'rs:1.0o4' ? 'hl' : ''}"><td>${name}</td>${keys.map(m => `<td class="n">${fmt(E[k][m])}</td>`).join('')}<td class="n">${fmt(E[k].stab_knn)}</td><td class="n">${fmt(E[k].stab_dist)}</td></tr>`).join('');
+})();
+
+// fig 22: the same data, three seeds, UMAP against ScaleRank
+(function () {
+  const C = D.seedcmp;
+  if (!C) return;
+  const box = document.getElementById('fig-seedcmp');
+  const sets = {
+    hier_blobs: { name: 'hier_blobs (synthetic)', lab: c => `large cluster ${c + 1}` },
+    kolodziejczyk: { name: 'Kolodziejczyk (mouse ES cells)', lab: (c, n) => `culture ${n[c]}` },
+  };
+  const rows = [['umap', 'UMAP'], ['sr', 'ScaleRank γ=1']];
+  const groups = {};
+  Object.keys(sets).filter(ds => C[ds]).forEach(ds => {
+    const E = C[ds], g = document.createElement('div');
+    g.hidden = true; box.appendChild(g); groups[ds] = { g, made: [] };
+    rows.forEach(([k, name]) => {
+      const h = document.createElement('div'); h.className = 'row-head';
+      h.innerHTML = `${name}<span class="mini-sub">global agreement between seeds ${E.dist[k].toFixed(2)}</span>`; g.appendChild(h);
+      const grid = document.createElement('div'); grid.className = 'grid-3'; g.appendChild(grid);
+      E.emb[k].forEach((Y, s) => groups[ds].made.push(scatter(grid, `seed ${s}`, Y, i => ({ color: SLOT(E.labels[i]) }),
+        i => `<div class="t">${sets[ds].lab(E.labels[i], E.names)}</div>${name} · seed ${s}`)));
+    });
+  });
+  const legend = document.getElementById('fig-seedcmp-legend');
+  const show = ds => {
+    Object.entries(groups).forEach(([k, v]) => { v.g.hidden = k !== ds; });
+    groups[ds].made.forEach(s => s.draw());
+    const E = C[ds];
+    legend.innerHTML = [...new Set(E.labels)].sort((a, b) => a - b).map(c =>
+      `<span><span class="sw dot" style="background:var(${SLOT(c)})"></span>${sets[ds].lab(c, E.names)}</span>`).join('');
+  };
+  segmented(document.getElementById('seedcmp-ds'), Object.keys(groups).map(k => [k, sets[k].name]), 'hier_blobs', show);
+  show('hier_blobs');
 })();
 
 // ---------------------------------------------------------------- redraw canvases on resize / theme change

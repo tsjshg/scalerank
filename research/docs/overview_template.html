@@ -123,6 +123,9 @@ svg .zero { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1rem; }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: 0.9rem 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem 0.8rem; margin: 0.3rem 0 1rem; }
+.row-head { font-size: 0.9rem; font-weight: 700; color: var(--ink); margin-top: 0.4rem; }
+.row-head .mini-sub { margin-left: 0.4rem; }
 .grid-2 > *, .grid-4 > * { min-width: 0; }
 .mini-title { font-size: 0.85rem; font-weight: 700; color: var(--ink); margin-bottom: 0.15rem; }
 .mini-sub { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
@@ -691,6 +694,17 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="col">
     <p>t-SNE や UMAP は、実行するたびに結果が変わることがあります。seed を固定すれば同じ図は出ますが、それは乱数を固定しただけです。行の順番を入れ替えるだけでも別の図になります。一方 PCA は、いつも同じ答えを返します。</p>
     <p>そこで、同じデータの地図を seed を変えて（0, 1, 2）、また行の順番を変えて（3 通り）作り、地図どうしがどれだけ一致するかを 8 データで測りました。大域は 2 つの地図での距離の順位相関、局所は 10 近傍が一致する割合で見ます。どちらも 1 なら完全に同じです。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">データ:</span><div class="seg" id="seedcmp-ds" role="group" aria-label="データの切り替え"></div></div>
+      <div id="fig-seedcmp"></div>
+      <div class="legend" id="fig-seedcmp-legend"></div>
+      <figcaption><b>図22.</b> 同じデータを seed だけ変えて 3 回描いた地図（上段 UMAP、下段 ScaleRank γ=1、Rust 版）。向きの違いで見誤らないよう、seed 1・2 は seed 0 に回転と鏡映で合わせてある。hier_blobs は 3 つの大クラスタ × 4 つの小クラスタの人工データで、色は大クラスタ。Kolodziejczyk はマウス ES 細胞 704 個、色は 3 つの培養条件。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>UMAP の地図でクラスタどうしの位置関係を読むと、seed しだいで違う結論になります（図22）。hier_blobs の UMAP では、同じ大クラスタの小クラスタが地図のあちこちに散り、どれとどれが隣り合うかも seed ごとに変わります。ScaleRank では同じ色が 3 回ともまとまり、配置も変わりません。実データの Kolodziejczyk でも同じ傾向ですが、差は小さくなります。表8 は、これを 8 データで数えたものです。</p>
   </div>
   <div class="wide">
     <figure class="panel">
@@ -1722,6 +1736,40 @@ const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Mat
   const keys = ['rnx@10', 'auc_rnx', 'dist_spearman', 'density_corr', 'knn_acc'];
   document.getElementById('dens-table').innerHTML = rows.filter(([k]) => E[k]).map(([k, name]) =>
     `<tr class="${k === 'rs:1.0o4' ? 'hl' : ''}"><td>${name}</td>${keys.map(m => `<td class="n">${fmt(E[k][m])}</td>`).join('')}<td class="n">${fmt(E[k].stab_knn)}</td><td class="n">${fmt(E[k].stab_dist)}</td></tr>`).join('');
+})();
+
+// fig 22: the same data, three seeds, UMAP against ScaleRank
+(function () {
+  const C = D.seedcmp;
+  if (!C) return;
+  const box = document.getElementById('fig-seedcmp');
+  const sets = {
+    hier_blobs: { name: 'hier_blobs（人工データ）', lab: c => `大クラスタ ${c + 1}` },
+    kolodziejczyk: { name: 'Kolodziejczyk（マウス ES 細胞）', lab: (c, n) => `培養条件 ${n[c]}` },
+  };
+  const rows = [['umap', 'UMAP'], ['sr', 'ScaleRank γ=1']];
+  const groups = {};
+  Object.keys(sets).filter(ds => C[ds]).forEach(ds => {
+    const E = C[ds], g = document.createElement('div');
+    g.hidden = true; box.appendChild(g); groups[ds] = { g, made: [] };
+    rows.forEach(([k, name]) => {
+      const h = document.createElement('div'); h.className = 'row-head';
+      h.innerHTML = `${name}<span class="mini-sub">seed 間の大域の一致 ${E.dist[k].toFixed(2)}</span>`; g.appendChild(h);
+      const grid = document.createElement('div'); grid.className = 'grid-3'; g.appendChild(grid);
+      E.emb[k].forEach((Y, s) => groups[ds].made.push(scatter(grid, `seed ${s}`, Y, i => ({ color: SLOT(E.labels[i]) }),
+        i => `<div class="t">${sets[ds].lab(E.labels[i], E.names)}</div>${name} · seed ${s}`)));
+    });
+  });
+  const legend = document.getElementById('fig-seedcmp-legend');
+  const show = ds => {
+    Object.entries(groups).forEach(([k, v]) => { v.g.hidden = k !== ds; });
+    groups[ds].made.forEach(s => s.draw());
+    const E = C[ds];
+    legend.innerHTML = [...new Set(E.labels)].sort((a, b) => a - b).map(c =>
+      `<span><span class="sw dot" style="background:var(${SLOT(c)})"></span>${sets[ds].lab(c, E.names)}</span>`).join('');
+  };
+  segmented(document.getElementById('seedcmp-ds'), Object.keys(groups).map(k => [k, sets[k].name]), 'hier_blobs', show);
+  show('hier_blobs');
 })();
 
 // ---------------------------------------------------------------- redraw canvases on resize / theme change
