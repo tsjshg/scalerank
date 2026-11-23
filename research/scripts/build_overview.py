@@ -13,7 +13,9 @@ prototype's runs under their explicit names (see ALIASES).  Figures quoted
 from one-off investigations (2022 notebook scores, force decomposition,
 hubness, the Q sweep) are written in the template itself.
 
-Further runs for the later sections: the tuned t-SNE / UMAP grid (see
+Further runs for the later sections: the density term (the DENS specs, seeds
+0-2, and their seed stability in ``results/stability_density.csv`` from
+``scripts/stability_density.py``); the tuned t-SNE / UMAP grid (see
 ``scripts/compare_tuned_baselines.py``), ``scalerank_fast`` and
 ``scalerank_rs`` / ``tsne_rs`` / ``umap_rs`` on the 8 datasets, and the 70k
 runs on ``mnist70k`` / ``fmnist70k`` (seed 0); the stability section reads
@@ -146,6 +148,108 @@ def stability_data():
     return {"methods": out, "rho": rho}
 
 
+OP_DIR = ROOT / "results" / "openproblems"
+OP_DATA = ["mouse_blood_olsson_labelled", "mouse_hspc_nestorowa2016", "pancreas", "zebrafish"]
+OP_CONTROLS = ["random_features", "spectral_features", "true_features"]
+OP_METRICS = [
+    "qnx_auc", "qlocal", "qglobal", "qnx_at_k30", "lcmc_at_k30",
+    "trustworthiness_at_k30", "continuity_at_k30",
+    "waypoint_distance_correlation", "centroid_distance_correlation", "label_distance_correlation",
+    "density_preservation", "normalized_mutual_information", "adjusted_rand_index",
+]
+_SR = "gamma=0.5,n_hvg=3000,n_pcs=100"
+# page key -> Open Problems harness spec (sorted key=value items, without seed)
+OP_SETTINGS = {
+    "sr_dens": f"sr:dens_all=1,dens_lambda=4,dens_pcs=300,{_SR}",
+    "sr_dens100": f"sr:dens_all=1,dens_lambda=4,{_SR}",
+    "sr_dens_own": f"sr:dens_all=1,dens_lambda=4,dens_own=1,dens_pcs=300,{_SR}",
+    "sr": f"sr:{_SR}",
+    "densmap": "task:densmap",
+    "tsne": "task:tsne",
+    "phate": "task:phate",
+    "umap": "umap:",  # the task's default, run as `umap` in runs/<dataset>.csv
+    "pca": "task:pca",
+}
+
+
+def _op_setting(method):
+    """'sr:a=1,seed=3' -> ('sr:a=1', 3), with the items sorted; missing seed = 42."""
+    head, _, rest = method.partition(":")
+    parts = rest.split(",")
+    items = dict(p.split("=") for p in parts if "=" in p)
+    seed = int(items.pop("seed", 42))
+    base = [p for p in parts if "=" not in p]
+    return f"{head}:" + ",".join(base + [f"{k}={v}" for k, v in sorted(items.items())]), seed
+
+
+def openproblems_data():
+    """Overall Open Problems score (scaled between the controls, as on the
+    task's leaderboard) and density_preservation per setting, mean and sd over
+    seeds, from research/results/openproblems/runs."""
+    files = sorted((OP_DIR / "runs").glob("*.csv"))
+    files += [f for sub in ("hvg", "sweep", "dens", "seeds") for f in sorted((OP_DIR / "runs" / sub).glob("*.csv"))]
+    runs = pd.concat([pd.read_csv(f) for f in files])
+    runs[["setting", "seed"]] = runs.method.apply(lambda m: pd.Series(_op_setting(m)))
+    key = {v: k for k, v in OP_SETTINGS.items()}
+    runs = runs[runs.setting.isin(key)].drop_duplicates(["dataset", "setting", "seed"], keep="last")
+    pub = pd.read_csv(OP_DIR / "published_scores.csv")
+    rows = []
+    for ds, r in runs.groupby("dataset"):
+        ctrl = pub[(pub.dataset == ds) & pub.method.isin(OP_CONTROLS)].pivot_table(index="metric", columns="method", values="value")
+        lo, hi = ctrl.min(axis=1)[OP_METRICS], ctrl.max(axis=1)[OP_METRICS]
+        scaled = ((r[OP_METRICS] - lo) / (hi - lo)).clip(0, 1).fillna(0)
+        rows.append(pd.DataFrame({"dataset": ds, "key": r.setting.map(key).values, "seed": r.seed.values,
+                                  "score": scaled.mean(axis=1).values, "density": r.density_preservation.values}))
+    s = pd.concat(rows)
+    out = {}
+    for k in OP_SETTINGS:
+        g = s[s.key == k]
+        per = g.pivot_table(index="seed", columns="dataset", values="score").reindex(columns=OP_DATA)
+        full = per.dropna()
+        dens = g.groupby("dataset").density.mean().reindex(OP_DATA)
+        out[k] = {
+            "score": {ds: round(float(per[ds].mean()), 3) for ds in OP_DATA},
+            "mean": round(float(full.mean(axis=1).mean()), 3),
+            "sd": round(float(full.mean(axis=1).std()), 3) if len(full) > 1 else None,
+            "seeds": len(full),
+            "density": {ds: round(float(v), 3) for ds, v in dens.items()},
+        }
+    return out
+
+
+# drbench: the density term against the same settings without it (8 datasets, seeds 0-2)
+DENS = {
+    "rs:1.0": "scalerank_rs:gamma=1.0",
+    "rs:1.0d1": "scalerank_rs:gamma=1.0,dens_lambda=1",
+    "rs:1.0d4": "scalerank_rs:gamma=1.0,dens_lambda=4",
+    "rs:1.0o1": "scalerank_rs:gamma=1.0,dens_lambda=1,dens_own=True",
+    "rs:1.0o4": "scalerank_rs:gamma=1.0,dens_lambda=4,dens_own=True",
+    "rs:0.5": "scalerank_rs:gamma=0.5",
+    "rs:0.5d4": "scalerank_rs:gamma=0.5,dens_lambda=4",
+    "rs:0.5o4": "scalerank_rs:gamma=0.5,dens_lambda=4,dens_own=True",
+    "densmap": "densmap",
+    "tsne": "tsne",
+    "umap": "umap",
+}
+
+
+def density_data(table):
+    """Mean over the 8 datasets of each metric per setting (settings with all 8 only),
+    with its seed stability (results/stability*.csv) when measured."""
+    st = pd.concat([pd.read_csv(f) for f in (RESULTS_DIR / "stability.csv", RESULTS_DIR / "stability_density.csv") if f.exists()])
+    st = st[st.experiment == "seed"].groupby("method")[["knn", "dist"]].mean()
+    out = {}
+    for key, sp in DENS.items():
+        t = table[(table.method == sp) & table.dataset.isin(ORDER)]
+        if t.dataset.nunique() < len(ORDER):
+            continue
+        out[key] = {m: round(float(t[m].mean()), 3) for m in METRICS}
+        if sp in st.index:
+            out[key]["stab_knn"] = round(float(st.loc[sp, "knn"]), 3)
+            out[key]["stab_dist"] = round(float(st.loc[sp, "dist"]), 3)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=PUBLISHED, help="where to write index.html and ja.html (default: ../scalerank-web/web/public/docs)")
@@ -208,6 +312,8 @@ def main():
         "ports": [{"rust": a, "ref": b, **mean_diff(table, a, b)} for a, b in PORTS],
         "big": big_data(table),
         "stability": stability_data(),
+        "op": openproblems_data(),
+        "dens": density_data(table),
     }
     payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")
     args.out.mkdir(parents=True, exist_ok=True)

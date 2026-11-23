@@ -194,7 +194,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <h1>MADR から <span class="to">ScaleRank</span> へ</h1>
     <p class="lede">2020年に始めたマルチエージェント型の次元削減（MADR）を見直し、比較の物差しを作り直したうえで、「守るスケールを指定できる順位保存」という新しい手法 ScaleRank を試作しました。最初の版で見つかった外れ点の問題を調べて損失関数をソフトマックス型に作り直し、N² を使わない版で 7 万点まで広げ、Rust と WebAssembly でブラウザアプリにするまでの経緯と結果を、図で説明します。</p>
     <div class="meta">
-      <span>2026年11月20日時点</span>
+      <span>2026年11月23日時点</span>
       <span>研究コード: <a href="https://github.com/tsjshg/scalerank/tree/main/research" target="_blank" rel="noopener">scalerank/research</a></span>
       <span>ベンチマーク: <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">github.com/tsjshg/drbench</a></span>
       <span>アプリ: <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a></span>
@@ -209,7 +209,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <div class="summary">
       <div><div class="k">何をしたか</div><p>過去の試みを読み直し、8データ × 8手法を同じ指標で比べるベンチマーク基盤 <b>drbench</b> を作った。新手法を試作し、7 万点まで動く版とブラウザアプリにした。</p></div>
       <div><div class="k">何が分かったか</div><p>既存手法には「局所に強い」か「大域に強い」かのトレードオフがあり、全スケールで勝つ手法はない。</p></div>
-      <div><div class="k">新手法</div><p><span class="sr">ScaleRank</span> は守りたいスケールを γ で指定する。現行のソフトマックス型（γ=1）は、8データすべてで局所と大域の両方で既存手法に負けない点を作った。パラメータを調整した t-SNE・UMAP（30 設定）も、両方で上回ることはなかった。</p></div>
+      <div><div class="k">新手法</div><p><span class="sr">ScaleRank</span> は守りたいスケールを γ で指定する。現行のソフトマックス型（γ=1）は、8データすべてで局所と大域の両方で既存手法に負けない点を作った。パラメータを調整した t-SNE・UMAP（30 設定）も、両方で上回ることはなかった。密度項を足すと、単一細胞の外部ベンチマーク Open Problems で densMAP を上回った（総合 0.491 対 0.452）。</p></div>
       <div><div class="k">残る課題</div><p>局所だけなら t-SNE がまだ上で、7 万点ではその差が広がる。外れ点が多い。個々の要素の多くは先行研究にあり、多重スケール t-SNE や DREAMS との比較が必要。</p></div>
     </div>
     <nav class="toc" aria-label="目次" style="margin-top:1.6rem">
@@ -230,6 +230,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
         <li><a href="#prior">先行研究との位置づけ</a></li>
         <li><a href="#scale">N² を使わない版と 7 万点</a></li>
         <li><a href="#app">Rust 版とブラウザアプリ</a></li>
+        <li><a href="#openproblems">Open Problems で比べる</a></li>
+        <li><a href="#density">密度項: 局所的な大きさを伝える</a></li>
         <li><a href="#caveats">割り引いて読むべき点と次の一手</a></li>
         <li><a href="#repro">再現方法</a></li>
       </ol>
@@ -250,7 +252,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <div class="tl-item" role="listitem"><div class="tl-date">2026年10月26日</div><div class="tl-title">再始動: drbench と ScaleRank 初期版</div><p>物差しを先に作り、その上で三つ組の損失を使う ScaleRank を試作。外れ点の原因を調査。</p></div>
       <div class="tl-item" role="listitem"><div class="tl-date">2026年10月27日</div><div class="tl-title">ソフトマックス型へ</div><p>1つの近傍に対して非近傍を20個まとめて比べる損失に切り替え、既定値にした。</p></div>
       <div class="tl-item" role="listitem"><div class="tl-date">2026年10月27日</div><div class="tl-title">7 万点とブラウザへ</div><p>N² の順位表をやめた版を作り、Rust で書き直して、データをブラウザの外に出さないアプリとして公開した。</p></div>
-      <div class="tl-item now" role="listitem"><div class="tl-date">2026年11月20日</div><div class="tl-title">地図はデータで決まっているか</div><p>seed と行の順番を変えて、地図がどれだけ変わるかを測った。</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2026年11月20日</div><div class="tl-title">地図はデータで決まっているか</div><p>seed と行の順番を変えて、地図がどれだけ変わるかを測った。</p></div>
+      <div class="tl-item now" role="listitem"><div class="tl-date">2026年11月23日</div><div class="tl-title">Open Problems と密度項</div><p>単一細胞の外部ベンチマークで比べ、densMAP にならった密度項を足して densMAP を上回った。</p></div>
     </div>
   </div>
 </section>
@@ -806,7 +809,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="col sec-head new"><span class="eyebrow">実装</span><h2 id="h-app">Rust 版とブラウザアプリ<span class="badge">NEW</span></h2></div>
   <div class="col">
     <p>データをブラウザの外に出さずに使えるように、ScaleRank を Rust で書き直し、WebAssembly でブラウザ上で動くアプリにしました。比較用に t-SNE と UMAP も同じ Rust のコードに入れ、利用者が指示したときだけ計算します。近似 k 近傍（NN-descent）も実装しましたが、50 次元・7 万点では総当たり（10 スレッドで 4.3 秒）より速くならなかったので、今は総当たりを使っています。</p>
-    <div class="callout"><p><b>アプリ:</b> <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a>（コード: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a>）</p></div>
+    <div class="callout"><p><b>アプリ:</b> <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a>（コード: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a>、手法の本体と Python パッケージ: <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">github.com/tsjshg/scalerank</a>）</p></div>
     <p>Rust 版が参照実装と同じものを計算していることを、drbench で確かめました（表7）。t-SNE は openTSNE、UMAP は umap-learn（PCA 初期化）、ScaleRank は Python 版と比べています。</p>
   </div>
   <div class="wide">
@@ -826,6 +829,88 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   </div>
 </section>
 
+<!-- ============================================================ openproblems -->
+<section id="openproblems" aria-labelledby="h-openproblems">
+  <div class="col sec-head new"><span class="eyebrow">外部の物差し</span><h2 id="h-openproblems">Open Problems で比べる<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>drbench は自分で作った物差しなので、外の物差しでも測りました。<a href="https://openproblems.bio/" target="_blank" rel="noopener">Open Problems in Single-Cell Analysis</a> は単一細胞解析の手法を共通の条件で比べるコミュニティのベンチマークで、その次元削減タスク（task_dimensionality_reduction）を使いました。データは 4 つ（マウス血液 660 細胞、マウス造血幹細胞 1,920 細胞、膵臓 16,382 細胞、ゼブラフィッシュ 26,022 細胞）です。</p>
+    <p>指標は 13 個あります。順位の保存（co-ranking の Q<sub>NX</sub>・LCMC・trustworthiness・continuity など）、距離の相関（細胞・細胞型の重心・ラベル）、密度の保存（density_preservation）、クラスタリングの一致（NMI、ARI）です。各指標を 3 つの対照（ランダム、スペクトル、元の特徴量）の最小と最大で 0〜1 に揃え、平均したものが総合スコアです。指標はタスクの定義に従って自前のハーネスで計算し、公開されている UMAP・PCA・t-SNE の値が再現できることを確かめました（計算の重いスペクトル距離の相関だけは除いています）。</p>
+    <p>公開されている表では、欠けている指標が 0 として数えられています。densMAP などはこれで不利になっているので、比較相手の主な手法もタスクの既定の入力のまま同じハーネスで計算し直しました。ScaleRank の入力（3,000 個の高変動遺伝子 → PCA-100、γ=0.5）は、小さい 2 データで選びました。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>手法</th><th>入力</th><th class="n">マウス血液</th><th class="n">マウス HSPC</th><th class="n">膵臓</th><th class="n">ゼブラフィッシュ</th><th class="n">平均</th><th class="n">seed 数</th></tr></thead>
+          <tbody id="op-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表9.</b> Open Problems の総合スコア（13 指標を対照で 0〜1 に揃えた平均）。平均の ± は seed 間の標準偏差。ScaleRank は 5 seed、densMAP は 3 seed、ほかは 1 seed。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>密度項なしの ScaleRank（<span class="js-op" data-k="sr"></span>）は t-SNE・UMAP・PHATE・PCA より上でしたが、<strong>densMAP（<span class="js-op" data-k="densmap"></span>）に届きませんでした</strong>。</li>
+      <li>差は density_preservation の 1 指標でほぼ説明できます。ScaleRank は 0.18〜0.57、densMAP は 0.65〜0.87 で（表10）、この指標だけで総合スコアに約 0.026 の差がつきます。残りの 12 指標では ScaleRank がわずかに上でした（マウス血液を除く 3 データで上）。</li>
+      <li>入力の作り方で順位は変わります。3,000 個の高変動遺伝子にすると UMAP・PHATE・ScaleRank は上がり、densMAP は下がりました。表9 は各手法の既定の入力での値です。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ density -->
+<section id="density" aria-labelledby="h-density">
+  <div class="col sec-head new"><span class="eyebrow">調査 5</span><h2 id="h-density">密度項: 局所的な大きさを伝える<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>ScaleRank の損失は順位だけを見ているので、距離をどんな単調な変換で伸び縮みさせても値が変わりません。そのため、ある細胞の周りがデータで密か疎かは地図に伝わらず、地図での局所的な大きさはたまたま決まります。densMAP（Narayan ら 2021）は、各点の局所的な半径をデータと地図で相関させる項を UMAP に足してこれを補っています。同じ考え方の項を ScaleRank に足しました。</p>
+    <p>各点の半径を、30 近傍までの距離の二乗平均の対数 r<sub>i</sub> = ln(mean<sub>j</sub> d<sub>ij</sub><sup>2</sup>) とし、地図での r と目標の r の相関に −λ·n をかけて損失に加えます。学習の最後の 3 割だけで使い、計算量は 1 エポックあたり O(nk) です。λ は小さい 2 データで選び、4 にしました（4〜8 で横ばい）。</p>
+    <h3>大きいデータでつまずいた 2 点</h3>
+    <p>小さい 2 データではこれだけで densMAP と同程度か上になりましたが、膵臓とゼブラフィッシュでは密度の保存が 0.57 と 0.38 にとどまりました。原因は 2 つありました。</p>
+    <ul>
+      <li><b>目標をどこで測るか.</b> 評価は全遺伝子で半径を測りますが、ScaleRank の入力は高変動遺伝子の PCA-100 です。全遺伝子の PCA-100 で測った目標でも、評価側の半径との相関は膵臓で 0.668 しかありませんでした。PCA-300 にすると 0.887（ゼブラフィッシュ 0.824）になります。順位は今までどおり高変動遺伝子から取り、目標の半径だけを全遺伝子の PCA-300 から渡すようにしました。</li>
+      <li><b>どの近傍で測るか.</b> 地図での半径を入力の 30 近傍で測っていましたが、評価は地図自身の 30 近傍で測ります。ゼブラフィッシュでは両者がずれていて、地図自身の近傍で測った半径と目標との相関は 0.515、入力の近傍なら 0.979 でした。地図の 30 近傍を 10 エポックごとに計算し直す設定（dens_own）を加えました。</li>
+    </ul>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>設定</th><th class="n">マウス血液</th><th class="n">マウス HSPC</th><th class="n">膵臓</th><th class="n">ゼブラフィッシュ</th><th class="n">総合スコア</th></tr></thead>
+          <tbody id="op-dens-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表10.</b> Open Problems の density_preservation（seed 平均）と総合スコア。「目標」は目標の半径を測る空間、「近傍」は地図の半径を測る近傍。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li><strong>総合で最も良いのは、目標を全遺伝子の PCA-300 で測り、地図の半径は入力の近傍で測る設定で、<span class="js-op" data-k="sr_dens"></span></strong>でした。densMAP の <span class="js-op" data-k="densmap"></span> を 4 データ中 3 つで上回ります（ゼブラフィッシュは seed のばらつきの範囲内）。</li>
+      <li>地図自身の近傍で測る設定は、密度の保存そのものは最も良くなります（膵臓 0.858、ゼブラフィッシュ 0.772）。ただしクラスタリングの一致（NMI、ARI）が下がるので、総合では上がりません。</li>
+      <li>大きい 2 データの計算時間は同じ Linux 機で 200〜270 秒、densMAP（全遺伝子をそのまま使う既定の入力）は 23〜27 分でした。ScaleRank の時間の大半は全遺伝子の PCA（300 成分）です。</li>
+    </ul>
+    <h3>drbench の 8 データで確かめる</h3>
+    <p>この設定は Open Problems のデータで選んだので、drbench の 8 データ（各 3 seed）でも密度項の効き方を測りました。drbench の密度相関は 10 近傍の半径で測るので、Open Problems の指標とは少し違います。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>設定</th><th class="n">局所 R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">大域 距離相関</th><th class="n">密度相関</th><th class="n">kNN 精度</th><th class="n">安定性 局所</th><th class="n">安定性 大域</th></tr></thead>
+          <tbody id="dens-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表11.</b> drbench の 8 データ × 3 seed の平均（Rust 版）。λ は密度項の重み、「自分」は地図自身の近傍で半径を測る設定。安定性は seed を変えたときの地図どうしの一致（表8 と同じ測り方）。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>密度相関は 0.62 から、入力の近傍で 0.80、地図自身の近傍で 0.85〜0.90 まで上がりました。<strong>γ=1・λ=4・自分の近傍の設定は、局所・AUC・大域・密度・kNN 精度の 5 つすべてで densMAP を上回ります</strong>。</li>
+      <li>代わりに局所が下がります。R<sub>NX</sub>@10 は 0.507 から λ=4 で 0.45 前後になりました。λ=1・自分の近傍なら 0.490 で、密度相関は 0.845 です。</li>
+      <li>seed を変えたときの局所の一致も下がります（0.743 → 0.63〜0.71）。大域の一致は 0.97 前後のまま変わりません。</li>
+    </ul>
+    <div class="callout"><p><b>含意:</b> 密度項は、局所の近さを少し手放して局所的な大きさを伝える項です。既定では切っておき、細胞の密集度に意味があるデータで使う設定にしています。Open Problems のように密度が指標に入る評価では、この交換が総合スコアで得になりました。</p></div>
+  </div>
+</section>
+
 <!-- ============================================================ caveats -->
 <section id="caveats" aria-labelledby="h-caveats">
   <div class="col sec-head"><span class="eyebrow">まとめ</span><h2 id="h-caveats">割り引いて読むべき点と次の一手</h2></div>
@@ -841,6 +926,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <li>7 万点では局所が t-SNE の約 4 分の 1 まで下がる。neg_scale で約 2 倍になるが、まだ届かない。</li>
       <li>個々の要素の多くは先行研究にある。p(K) で重みを変えた多重スケール t-SNE や DREAMS とはまだ比べていない。</li>
       <li>ブラウザ版は単一スレッドで、2 万点の ScaleRank に約 1 分かかる。</li>
+      <li>密度項は局所を下げ（R<sub>NX</sub>@10 で γ=1 なら 0.02〜0.06、γ=0.5 なら 0.07〜0.09）、seed による局所の揺れも大きくする。</li>
+      <li>Open Problems の設定（入力、γ、λ、目標の空間）は同じベンチマークのデータで選んだ。小さい 2 データで選び、大きい 2 データで確かめたが、どれもベンチマーク自身のデータである。CELLxGENE のデータは回していない。</li>
+      <li>Open Problems の比較相手は既定の設定で 1 seed（densMAP だけ 3 seed）。各手法を調整したわけではない。</li>
     </ul>
     <h3>次の一手の候補</h3>
     <ul>
@@ -849,6 +937,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <li><b>正例側の非対称性を直す.</b> t-SNE のように点ごとの帯域で「近傍として引かれる量」をならし、anti-hub にも十分な引力を与える。</li>
       <li><b>大きい N で局所を保つ.</b> neg_scale の既定値を N に合わせて決める。t-SNE の early exaggeration にあたる段階を試す。</li>
       <li><b>先行研究と直接比べる.</b> p(K) で重みを変えた多重スケール t-SNE、DREAMS の λ の掃引、対比学習での負例の数の掃引を drbench に入れる。</li>
+      <li><b>密度項の代償を減らす.</b> 入力の近傍と地図自身の近傍を混ぜる、λ を学習の途中で変えるなどで、局所の低下と揺れを抑える。</li>
+      <li><b>Open Problems に提出する.</b> Python パッケージ scalerank を PyPI に公開し、タスクに手法として加える。</li>
       <li><b>ブラウザで速くする.</b> マルチスレッド化と SIMD で 10 万点を目指す。t-SNE には FFT 版を入れる。</li>
     </ul>
   </div>
@@ -901,13 +991,21 @@ uv run python scripts/stability.py \
   --order-methods pca tsne tsne_rs umap umap:init=pca umap_rs scalerank:gamma=1.0 scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 \
   --point-methods tsne umap:init=pca scalerank:gamma=1.0 scalerank:gamma=0.0
 
+# 密度項（drbench）と、その seed に対する安定性
+SPECS="scalerank_rs:gamma=0.5 scalerank_rs:gamma=1.0,dens_lambda=1 scalerank_rs:gamma=1.0,dens_lambda=4
+  scalerank_rs:gamma=1.0,dens_lambda=1,dens_own=True scalerank_rs:gamma=1.0,dens_lambda=4,dens_own=True
+  scalerank_rs:gamma=0.5,dens_lambda=4 scalerank_rs:gamma=0.5,dens_lambda=4,dens_own=True"
+uv run drbench run -m $SPECS
+uv run python $R/stability_density.py $SPECS
+# Open Problems: ../scalerank/research/results/openproblems/README.md の手順（結果はそこに置いてある）
+
 # このページ（scalerank-web の web/public/docs に書き出す）
 uv run python $R/build_overview.py</code></pre>
     <p>Rust 版は <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">tsjshg/scalerank</a>、アプリは <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a> にあります。</p>
   </div>
 </section>
 
-<footer class="col">このページは scalerank の <code>research/scripts/build_overview.py</code> で drbench の結果から生成しています。数値は 2026年11月20日時点のものです。</footer>
+<footer class="col">このページは scalerank の <code>research/scripts/build_overview.py</code> で drbench と Open Problems の結果から生成しています。数値は 2026年11月23日時点のものです。</footer>
 </main>
 
 <script type="application/json" id="data">/*__DATA__*/</script>
@@ -1596,6 +1694,34 @@ const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Mat
   document.getElementById('stability-table').innerHTML = rows.filter(([k]) => S.methods[k]).map(([k, name, ko]) =>
     `<tr class="${k === 'scalerank:gamma=1.0' ? 'hl' : ''}"><td>${name}</td>${cell(k, 'seed', 'dist')}${ko ? cell(ko, 'order', 'dist') : '<td class="n">–</td>'}${cell(k, 'seed', 'knn')}${ko ? cell(ko, 'order', 'knn') : '<td class="n">–</td>'}</tr>`).join('');
   document.querySelectorAll('.js-rho').forEach(e => { const v = S.rho[e.dataset.m]; e.textContent = v == null ? '–' : v.toFixed(2); });
+})();
+
+// ---------------------------------------------------------------- tables 9-11: Open Problems and the density term
+(function () {
+  const O = D.op, DS = ['mouse_blood_olsson_labelled', 'mouse_hspc_nestorowa2016', 'pancreas', 'zebrafish'];
+  const pm = r => r.sd == null ? fmt(r.mean) : `${fmt(r.mean)} ± ${fmt(r.sd)}`;
+  document.querySelectorAll('.js-op').forEach(e => { const r = O[e.dataset.k]; e.textContent = r ? pm(r) : '–'; });
+  const opRows = [
+    ['sr_dens', 'ScaleRank + 密度項', '3,000 HVG → PCA-100'], ['densmap', 'densMAP', '全遺伝子'], ['sr', 'ScaleRank', '3,000 HVG → PCA-100'],
+    ['tsne', 't-SNE', '全遺伝子 → PCA-50'], ['umap', 'UMAP', '1,000 HVG'], ['phate', 'PHATE', '全遺伝子 → PCA-50'], ['pca', 'PCA', '全遺伝子'],
+  ];
+  document.getElementById('op-table').innerHTML = opRows.filter(([k]) => O[k]).map(([k, name, input]) =>
+    `<tr class="${k === 'sr_dens' ? 'hl' : ''}"><td>${name}</td><td>${input}</td>${DS.map(d => `<td class="n">${fmt(O[k].score[d])}</td>`).join('')}<td class="n">${pm(O[k])}</td><td class="n">${O[k].seeds}</td></tr>`).join('');
+  const densRows = [
+    ['sr', '密度項なし'], ['sr_dens100', '目標 全遺伝子 PCA-100・近傍 入力'], ['sr_dens', '目標 全遺伝子 PCA-300・近傍 入力'],
+    ['sr_dens_own', '目標 全遺伝子 PCA-300・近傍 地図自身'], ['densmap', 'densMAP'],
+  ];
+  document.getElementById('op-dens-table').innerHTML = densRows.filter(([k]) => O[k]).map(([k, name]) =>
+    `<tr class="${k === 'sr_dens' ? 'hl' : ''}"><td>${name}</td>${DS.map(d => `<td class="n">${fmt(O[k].density[d])}</td>`).join('')}<td class="n">${pm(O[k])}</td></tr>`).join('');
+  const E = D.dens;
+  const rows = [
+    ['rs:1.0', 'ScaleRank γ=1'], ['rs:1.0d1', 'γ=1・λ=1'], ['rs:1.0d4', 'γ=1・λ=4'], ['rs:1.0o1', 'γ=1・λ=1・自分'], ['rs:1.0o4', 'γ=1・λ=4・自分'],
+    ['rs:0.5', 'ScaleRank γ=0.5'], ['rs:0.5d4', 'γ=0.5・λ=4'], ['rs:0.5o4', 'γ=0.5・λ=4・自分'],
+    ['densmap', 'densMAP'], ['tsne', 't-SNE'], ['umap', 'UMAP'],
+  ];
+  const keys = ['rnx@10', 'auc_rnx', 'dist_spearman', 'density_corr', 'knn_acc'];
+  document.getElementById('dens-table').innerHTML = rows.filter(([k]) => E[k]).map(([k, name]) =>
+    `<tr class="${k === 'rs:1.0o4' ? 'hl' : ''}"><td>${name}</td>${keys.map(m => `<td class="n">${fmt(E[k][m])}</td>`).join('')}<td class="n">${fmt(E[k].stab_knn)}</td><td class="n">${fmt(E[k].stab_dist)}</td></tr>`).join('');
 })();
 
 // ---------------------------------------------------------------- redraw canvases on resize / theme change

@@ -194,7 +194,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <h1>From MADR to <span class="to">ScaleRank</span></h1>
     <p class="lede">I revisited MADR, the multi-agent approach to dimensionality reduction I started in 2020, rebuilt the yardstick for comparing methods, and then prototyped a new method, ScaleRank: rank preservation at scales you can specify. This page explains, with figures, how I investigated the outlier problem found in the first version, rebuilt the loss function in a softmax form, scaled it to 70,000 points with a version that avoids N², and turned it into a browser app with Rust and WebAssembly, together with the results.</p>
     <div class="meta">
-      <span>As of 20 November 2026</span>
+      <span>As of 23 November 2026</span>
       <span>Research code: <a href="https://github.com/tsjshg/scalerank/tree/main/research" target="_blank" rel="noopener">scalerank/research</a></span>
       <span>Benchmark: <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">github.com/tsjshg/drbench</a></span>
       <span>App: <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a></span>
@@ -209,7 +209,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <div class="summary">
       <div><div class="k">What was done</div><p>Re-read the earlier attempts and built <b>drbench</b>, a benchmark framework that compares 8 datasets × 8 methods on the same metrics. Prototyped a new method and turned it into a version that runs on 70,000 points and a browser app.</p></div>
       <div><div class="k">What was found</div><p>Existing methods trade off being strong locally against being strong globally; no method wins at every scale.</p></div>
-      <div><div class="k">New method</div><p><span class="sr">ScaleRank</span> lets you specify the scales to preserve with γ. The current softmax version (γ=1) produced, on all 8 datasets, embeddings that no existing method beats on both local and global measures. Tuned t-SNE and UMAP (30 settings) did not beat it on both either.</p></div>
+      <div><div class="k">New method</div><p><span class="sr">ScaleRank</span> lets you specify the scales to preserve with γ. The current softmax version (γ=1) produced, on all 8 datasets, embeddings that no existing method beats on both local and global measures. Tuned t-SNE and UMAP (30 settings) did not beat it on both either. With a density term added, it scored above densMAP on Open Problems, an external single-cell benchmark (overall 0.491 vs 0.452).</p></div>
       <div><div class="k">Open issues</div><p>On local structure alone, t-SNE is still ahead, and the gap widens at 70,000 points. There are many outliers. Most of the individual components already exist in prior work, and comparisons with multi-scale t-SNE and DREAMS are needed.</p></div>
     </div>
     <nav class="toc" aria-label="Contents" style="margin-top:1.6rem">
@@ -230,6 +230,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
         <li><a href="#prior">Relation to prior work</a></li>
         <li><a href="#scale">An N²-free version and 70,000 points</a></li>
         <li><a href="#app">The Rust version and the browser app</a></li>
+        <li><a href="#openproblems">Comparison on Open Problems</a></li>
+        <li><a href="#density">A density term: carrying local scale</a></li>
         <li><a href="#caveats">Caveats and next steps</a></li>
         <li><a href="#repro">How to reproduce</a></li>
       </ol>
@@ -250,7 +252,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <div class="tl-item" role="listitem"><div class="tl-date">26 October 2026</div><div class="tl-title">Restart: drbench and the first version of ScaleRank</div><p>Built the yardstick first, then prototyped ScaleRank on top of it with a triplet loss. Investigated the cause of the outliers.</p></div>
       <div class="tl-item" role="listitem"><div class="tl-date">27 October 2026</div><div class="tl-title">To a softmax loss</div><p>Switched to a loss that compares one neighbour against 20 non-neighbours at once, and made it the default.</p></div>
       <div class="tl-item" role="listitem"><div class="tl-date">27 October 2026</div><div class="tl-title">70,000 points and the browser</div><p>Built a version without the N² rank table, rewrote it in Rust, and released it as an app that keeps the data inside the browser.</p></div>
-      <div class="tl-item now" role="listitem"><div class="tl-date">20 November 2026</div><div class="tl-title">Is the map determined by the data?</div><p>Measured how much the map changes with the seed and the row order.</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">20 November 2026</div><div class="tl-title">Is the map determined by the data?</div><p>Measured how much the map changes with the seed and the row order.</p></div>
+      <div class="tl-item now" role="listitem"><div class="tl-date">23 November 2026</div><div class="tl-title">Open Problems and a density term</div><p>Compared on an external single-cell benchmark, and added a density term after densMAP that put ScaleRank above densMAP.</p></div>
     </div>
   </div>
 </section>
@@ -806,7 +809,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="col sec-head new"><span class="eyebrow">Implementation</span><h2 id="h-app">The Rust version and the browser app<span class="badge">NEW</span></h2></div>
   <div class="col">
     <p>So that ScaleRank can be used without data leaving the browser, I rewrote it in Rust and made it into an app that runs in the browser via WebAssembly. For comparison, t-SNE and UMAP are included in the same Rust code and are computed only when the user asks for them. I also implemented approximate nearest neighbours (NN-descent), but with 50 dimensions and 70,000 points it was not faster than brute force (4.3 s on 10 threads), so brute force is used for now.</p>
-    <div class="callout"><p><b>App:</b> <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a> (code: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a>)</p></div>
+    <div class="callout"><p><b>App:</b> <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a> (code: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a>; the method and its Python package: <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">github.com/tsjshg/scalerank</a>)</p></div>
     <p>I checked with drbench that the Rust versions compute the same thing as the reference implementations (Table 7). t-SNE is compared with openTSNE, UMAP with umap-learn (PCA initialisation), and ScaleRank with the Python version.</p>
   </div>
   <div class="wide">
@@ -826,6 +829,117 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   </div>
 </section>
 
+<!-- ============================================================ openproblems -->
+<section id="openproblems" aria-labelledby="h-openproblems">
+  <div class="col sec-head new"><span class="eyebrow">External benchmark</span><h2 id="h-openproblems">Comparison on Open Problems<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>drbench is a benchmark of my own making, so I also measured ScaleRank on an external one. <a href="https://openproblems.bio/" target="_blank" rel="noopener">Open Problems in Single-Cell Analysis</a> is a community benchmark that compares single-cell methods under shared conditions. I used its dimensionality-reduction task (task_dimensionality_reduction), which has 4 datasets: mouse blood (660 cells), mouse haematopoietic stem cells (1,920), pancreas (16,382) and zebrafish (26,022).</p>
+    <p>The task has 13 metrics:</p>
+    <ul>
+      <li>rank preservation: co-ranking Q<sub>NX</sub>, LCMC, trustworthiness, continuity and others;</li>
+      <li>distance correlations: between cells, cell-type centroids and labels;</li>
+      <li>density preservation (density_preservation);</li>
+      <li>clustering agreement: NMI and ARI.</li>
+    </ul>
+    <p>Each metric is scaled to 0–1 between the lowest and highest of three controls (random, spectral and the original features), and the overall score is their mean. I computed the metrics in my own harness, following the task's definitions, and checked that it reproduces the published values of UMAP, PCA and t-SNE. Only the spectral distance correlation, which is expensive, is left out.</p>
+    <p>The published table counts missing metrics as 0, which penalises densMAP among others. I therefore reran the main competitors in the same harness, each with the task's default input. ScaleRank's input (3,000 highly variable genes → PCA-100, γ=0.5) was chosen on the two small datasets.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>Input</th><th class="n">Mouse blood</th><th class="n">Mouse HSPC</th><th class="n">Pancreas</th><th class="n">Zebrafish</th><th class="n">Mean</th><th class="n">Seeds</th></tr></thead>
+          <tbody id="op-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 9.</b> Open Problems overall score: the 13 metrics scaled between the controls and averaged. The ± on the mean is the standard deviation over seeds. ScaleRank: 5 seeds, densMAP: 3 seeds, the others: 1 seed.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>ScaleRank without a density term (<span class="js-op" data-k="sr"></span>) scored above t-SNE, UMAP, PHATE and PCA, but <strong>fell short of densMAP (<span class="js-op" data-k="densmap"></span>)</strong>.</li>
+      <li>The gap comes almost entirely from one metric, density_preservation (Table 10).
+        <ul>
+          <li>ScaleRank scored 0.18–0.57 on it and densMAP 0.65–0.87, which makes a gap of about 0.026 in the overall score.</li>
+          <li>On the other 12 metrics ScaleRank was slightly ahead, on 3 of the 4 datasets (all but mouse blood).</li>
+        </ul>
+      </li>
+      <li>The ranking depends on how the input is prepared. With 3,000 highly variable genes, UMAP, PHATE and ScaleRank went up and densMAP went down. Table 9 uses each method's default input.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ density -->
+<section id="density" aria-labelledby="h-density">
+  <div class="col sec-head new"><span class="eyebrow">Investigation 5</span><h2 id="h-density">A density term: carrying local scale<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>ScaleRank's loss sees only ranks. Stretching the distances by any monotone transform leaves it unchanged, so whether the data are dense or sparse around a cell does not reach the map; local scale in the map is arbitrary. densMAP (Narayan et al. 2021) fixes this in UMAP with a term that correlates each point's local radius in the data and in the map. I added a term of the same kind to ScaleRank.</p>
+    <p>How the term works:</p>
+    <ul>
+      <li>Each point's radius is the log of the mean squared distance to its 30 neighbours: r<sub>i</sub> = ln(mean<sub>j</sub> d<sub>ij</sub><sup>2</sup>).</li>
+      <li>The loss adds −λ·n times the correlation between the map's radii and the target radii.</li>
+      <li>The term is used only in the last 30% of training and costs O(nk) per epoch.</li>
+      <li>λ was chosen on the two small datasets: 4, on a plateau from 4 to 8.</li>
+    </ul>
+    <h3>Two problems on the large datasets</h3>
+    <p>On the two small datasets this alone matched or beat densMAP. On pancreas and zebrafish, density preservation stayed at 0.57 and 0.38. There were two causes.</p>
+    <ul>
+      <li><b>Where to measure the target.</b> The metric measures radii on all genes, while ScaleRank's input is PCA-100 of the highly variable genes.
+        <ul>
+          <li>Even a target measured on PCA-100 of all genes correlated only 0.668 with the metric's radii on pancreas.</li>
+          <li>With PCA-300 the correlation was 0.887 (zebrafish 0.824).</li>
+          <li>The fix: the ranks still come from the highly variable genes, and only the target radii come from PCA-300 of all genes.</li>
+        </ul>
+      </li>
+      <li><b>Which neighbours to measure over.</b> The map's radii were measured over the input's 30 neighbours, but the metric uses the map's own 30 neighbours.
+        <ul>
+          <li>On zebrafish the two sets differ. Radii over the map's own neighbours correlated 0.515 with the target, against 0.979 over the input's.</li>
+          <li>The fix: a setting (dens_own) that recomputes the map's 30 neighbours every 10 epochs.</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Setting</th><th class="n">Mouse blood</th><th class="n">Mouse HSPC</th><th class="n">Pancreas</th><th class="n">Zebrafish</th><th class="n">Overall score</th></tr></thead>
+          <tbody id="op-dens-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 10.</b> Open Problems density_preservation (mean over seeds) and the overall score. "Target" is the space the target radii are measured in; "neighbours" are those the map's radii are measured over.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li><strong>The best overall setting measures the target on PCA-300 of all genes and the map's radii over the input's neighbours: <span class="js-op" data-k="sr_dens"></span></strong>. It beats densMAP's <span class="js-op" data-k="densmap"></span> on 3 of the 4 datasets; on zebrafish the difference is within the seed spread.</li>
+      <li>Measuring over the map's own neighbours gives the best density preservation itself (pancreas 0.858, zebrafish 0.772). But clustering agreement (NMI, ARI) drops, so the overall score does not rise.</li>
+      <li>On the same Linux machine, the two large datasets took ScaleRank 200–270 s and densMAP 23–27 min. densMAP used its default input, all genes without PCA. Most of ScaleRank's time is the PCA of all genes (300 components).</li>
+    </ul>
+    <h3>A check on drbench's 8 datasets</h3>
+    <p>These settings were chosen on Open Problems data, so I also measured the density term on drbench's 8 datasets, with 3 seeds each. drbench's density correlation uses 10-neighbour radii, so it differs slightly from the Open Problems metric.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Setting</th><th class="n">Local R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">Global dist. corr.</th><th class="n">Density corr.</th><th class="n">kNN acc.</th><th class="n">Stability, local</th><th class="n">Stability, global</th></tr></thead>
+          <tbody id="dens-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 11.</b> Mean over drbench's 8 datasets × 3 seeds (Rust version). λ is the weight of the density term; "own" measures the radii over the map's own neighbours. Stability is the agreement between maps with different seeds, measured as in Table 8.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>Density correlation rose from 0.62 to 0.80 over the input's neighbours and to 0.85–0.90 over the map's own. <strong>With γ=1, λ=4 and the map's own neighbours, ScaleRank beats densMAP on all five measures: local, AUC, global, density and kNN accuracy.</strong></li>
+      <li>The cost is local quality. R<sub>NX</sub>@10 falls from 0.507 to about 0.45 at λ=4. With λ=1 and the map's own neighbours it is 0.490, with a density correlation of 0.845.</li>
+      <li>Local agreement between seeds also drops, from 0.743 to 0.63–0.71. Global agreement stays at about 0.97.</li>
+    </ul>
+    <div class="callout"><p><b>Implication:</b> The density term gives up a little local closeness to carry local scale. It is off by default and meant for data where how tightly cells pack carries meaning. On an evaluation that includes density, such as Open Problems, the trade paid off in the overall score.</p></div>
+  </div>
+</section>
+
 <!-- ============================================================ caveats -->
 <section id="caveats" aria-labelledby="h-caveats">
   <div class="col sec-head"><span class="eyebrow">Summary</span><h2 id="h-caveats">Caveats and next steps</h2></div>
@@ -841,6 +955,9 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <li>At 70,000 points, local drops to about a quarter of t-SNE's. neg_scale roughly doubles it, but it still falls short.</li>
       <li>Most of the individual components exist in prior work. ScaleRank has not yet been compared with multi-scale t-SNE reweighted by p(K) or with DREAMS.</li>
       <li>The browser version is single-threaded, and ScaleRank takes about a minute on 20,000 points.</li>
+      <li>The density term lowers local quality (R<sub>NX</sub>@10 down 0.02–0.06 at γ=1 and 0.07–0.09 at γ=0.5) and makes the local structure vary more between seeds.</li>
+      <li>The Open Problems settings (input, γ, λ, the target's space) were chosen on the benchmark's own data: picked on the two small datasets and checked on the two large ones. The CELLxGENE datasets were not run.</li>
+      <li>On Open Problems the other methods ran with their default settings and 1 seed (densMAP 3 seeds); none was tuned.</li>
     </ul>
     <h3>Candidate next steps</h3>
     <ul>
@@ -849,6 +966,8 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <li><b>Fix the asymmetry on the positive side.</b> As t-SNE does with per-point bandwidths, even out how strongly each point is pulled as a neighbour, so that anti-hubs also receive enough attraction.</li>
       <li><b>Keep local quality at large N.</b> Set the default neg_scale according to N. Try a stage corresponding to t-SNE's early exaggeration.</li>
       <li><b>Compare directly with prior work.</b> Add multi-scale t-SNE reweighted by p(K), a sweep of the λ in DREAMS and a sweep of the number of negatives in contrastive learning to drbench.</li>
+      <li><b>Reduce the cost of the density term.</b> Mix the input's and the map's own neighbours, or vary λ during training, to limit the loss and the variability of local structure.</li>
+      <li><b>Submit to Open Problems.</b> Publish the Python package scalerank on PyPI and add it to the task as a method.</li>
       <li><b>Make it faster in the browser.</b> Aim for 100,000 points with multithreading and SIMD. Add an FFT-based version of t-SNE.</li>
     </ul>
   </div>
@@ -901,13 +1020,21 @@ uv run python scripts/stability.py \
   --order-methods pca tsne tsne_rs umap umap:init=pca umap_rs scalerank:gamma=1.0 scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 \
   --point-methods tsne umap:init=pca scalerank:gamma=1.0 scalerank:gamma=0.0
 
+# the density term (drbench) and its stability against the seed
+SPECS="scalerank_rs:gamma=0.5 scalerank_rs:gamma=1.0,dens_lambda=1 scalerank_rs:gamma=1.0,dens_lambda=4
+  scalerank_rs:gamma=1.0,dens_lambda=1,dens_own=True scalerank_rs:gamma=1.0,dens_lambda=4,dens_own=True
+  scalerank_rs:gamma=0.5,dens_lambda=4 scalerank_rs:gamma=0.5,dens_lambda=4,dens_own=True"
+uv run drbench run -m $SPECS
+uv run python $R/stability_density.py $SPECS
+# Open Problems: see ../scalerank/research/results/openproblems/README.md (the results are kept there)
+
 # this page (written to scalerank-web's web/public/docs)
 uv run python $R/build_overview.py</code></pre>
     <p>The Rust version is in <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">tsjshg/scalerank</a> and the app in <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a>.</p>
   </div>
 </section>
 
-<footer class="col">This page is generated from the drbench results by scalerank's <code>research/scripts/build_overview.py</code>. All numbers are as of 20 November 2026.</footer>
+<footer class="col">This page is generated from the drbench and Open Problems results by scalerank's <code>research/scripts/build_overview.py</code>. All numbers are as of 23 November 2026.</footer>
 </main>
 
 <script type="application/json" id="data">/*__DATA__*/</script>
@@ -1596,6 +1723,34 @@ const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Mat
   document.getElementById('stability-table').innerHTML = rows.filter(([k]) => S.methods[k]).map(([k, name, ko]) =>
     `<tr class="${k === 'scalerank:gamma=1.0' ? 'hl' : ''}"><td>${name}</td>${cell(k, 'seed', 'dist')}${ko ? cell(ko, 'order', 'dist') : '<td class="n">–</td>'}${cell(k, 'seed', 'knn')}${ko ? cell(ko, 'order', 'knn') : '<td class="n">–</td>'}</tr>`).join('');
   document.querySelectorAll('.js-rho').forEach(e => { const v = S.rho[e.dataset.m]; e.textContent = v == null ? '–' : v.toFixed(2); });
+})();
+
+// ---------------------------------------------------------------- tables 9-11: Open Problems and the density term
+(function () {
+  const O = D.op, DS = ['mouse_blood_olsson_labelled', 'mouse_hspc_nestorowa2016', 'pancreas', 'zebrafish'];
+  const pm = r => r.sd == null ? fmt(r.mean) : `${fmt(r.mean)} ± ${fmt(r.sd)}`;
+  document.querySelectorAll('.js-op').forEach(e => { const r = O[e.dataset.k]; e.textContent = r ? pm(r) : '–'; });
+  const opRows = [
+    ['sr_dens', 'ScaleRank + density term', '3,000 HVG → PCA-100'], ['densmap', 'densMAP', 'all genes'], ['sr', 'ScaleRank', '3,000 HVG → PCA-100'],
+    ['tsne', 't-SNE', 'all genes → PCA-50'], ['umap', 'UMAP', '1,000 HVG'], ['phate', 'PHATE', 'all genes → PCA-50'], ['pca', 'PCA', 'all genes'],
+  ];
+  document.getElementById('op-table').innerHTML = opRows.filter(([k]) => O[k]).map(([k, name, input]) =>
+    `<tr class="${k === 'sr_dens' ? 'hl' : ''}"><td>${name}</td><td>${input}</td>${DS.map(d => `<td class="n">${fmt(O[k].score[d])}</td>`).join('')}<td class="n">${pm(O[k])}</td><td class="n">${O[k].seeds}</td></tr>`).join('');
+  const densRows = [
+    ['sr', 'no density term'], ['sr_dens100', 'target: all genes PCA-100, neighbours: input'], ['sr_dens', 'target: all genes PCA-300, neighbours: input'],
+    ['sr_dens_own', 'target: all genes PCA-300, neighbours: own'], ['densmap', 'densMAP'],
+  ];
+  document.getElementById('op-dens-table').innerHTML = densRows.filter(([k]) => O[k]).map(([k, name]) =>
+    `<tr class="${k === 'sr_dens' ? 'hl' : ''}"><td>${name}</td>${DS.map(d => `<td class="n">${fmt(O[k].density[d])}</td>`).join('')}<td class="n">${pm(O[k])}</td></tr>`).join('');
+  const E = D.dens;
+  const rows = [
+    ['rs:1.0', 'ScaleRank γ=1'], ['rs:1.0d1', 'γ=1, λ=1'], ['rs:1.0d4', 'γ=1, λ=4'], ['rs:1.0o1', 'γ=1, λ=1, own'], ['rs:1.0o4', 'γ=1, λ=4, own'],
+    ['rs:0.5', 'ScaleRank γ=0.5'], ['rs:0.5d4', 'γ=0.5, λ=4'], ['rs:0.5o4', 'γ=0.5, λ=4, own'],
+    ['densmap', 'densMAP'], ['tsne', 't-SNE'], ['umap', 'UMAP'],
+  ];
+  const keys = ['rnx@10', 'auc_rnx', 'dist_spearman', 'density_corr', 'knn_acc'];
+  document.getElementById('dens-table').innerHTML = rows.filter(([k]) => E[k]).map(([k, name]) =>
+    `<tr class="${k === 'rs:1.0o4' ? 'hl' : ''}"><td>${name}</td>${keys.map(m => `<td class="n">${fmt(E[k][m])}</td>`).join('')}<td class="n">${fmt(E[k].stab_knn)}</td><td class="n">${fmt(E[k].stab_dist)}</td></tr>`).join('');
 })();
 
 // ---------------------------------------------------------------- redraw canvases on resize / theme change
