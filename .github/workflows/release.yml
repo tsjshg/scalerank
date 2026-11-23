@@ -1,0 +1,106 @@
+# Builds the Python package `scalerank` (crates/scalerank-py) for Linux, macOS
+# and Windows, and publishes it to PyPI when a tag vX.Y.Z is pushed.
+#
+# - Run by hand (Actions → Python package → Run workflow) to build and test the
+#   wheels without publishing.
+# - Publishing uses PyPI's trusted publishing: no token is stored here. PyPI
+#   must list this repository, this workflow file (release.yml) and the
+#   environment `pypi` as a trusted publisher of the project.
+# - The wheels are abi3 (Python 3.10+), so one wheel per platform.
+name: Python package
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PKG: crates/scalerank-py
+
+jobs:
+  wheels:
+    name: wheel ${{ matrix.os }} ${{ matrix.target }}${{ matrix.manylinux == 'musllinux_1_2' && ' (musl)' || '' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux, runner: ubuntu-22.04, target: x86_64, manylinux: auto, test: true }
+          - { os: linux, runner: ubuntu-22.04-arm, target: aarch64, manylinux: auto, test: true }
+          - { os: linux, runner: ubuntu-22.04, target: x86_64, manylinux: musllinux_1_2, test: false }
+          - { os: macos, runner: macos-15-intel, target: x86_64, test: true }
+          - { os: macos, runner: macos-latest, target: aarch64, test: true }
+          - { os: windows, runner: windows-latest, target: x64, test: true }
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      - name: Build
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ${{ env.PKG }}
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out dist
+      - name: Test the wheel
+        if: matrix.test
+        shell: bash
+        run: |
+          python -m pip install numpy
+          python -m pip install scalerank --no-index --find-links "$PKG/dist"
+          cd "$RUNNER_TEMP"
+          python - <<'EOF'
+          import numpy as np
+          import scalerank
+          X = np.random.default_rng(0).normal(size=(300, 10))
+          Y = scalerank.ScaleRank(random_state=0, n_epochs=50).fit_transform(X)
+          assert Y.shape == (300, 2) and np.isfinite(Y).all()
+          Y = scalerank.ScaleRank(random_state=0, n_epochs=50, dens_lambda=4.0).fit_transform(X)
+          assert np.isfinite(Y).all()
+          print("scalerank", scalerank.__version__, "ok")
+          EOF
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist-${{ matrix.os }}-${{ matrix.target }}-${{ matrix.manylinux || 'native' }}
+          path: ${{ env.PKG }}/dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ${{ env.PKG }}
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dist-sdist
+          path: ${{ env.PKG }}/dist
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/scalerank
+    permissions:
+      id-token: write  # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Check that the tag matches the package version
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          ls dist
+          ls dist/scalerank-"$v"-*.whl dist/scalerank-"$v".tar.gz > /dev/null
+      - uses: pypa/gh-action-pypi-publish@release/v1
