@@ -8,12 +8,12 @@
 //! Only 2-D output (the quadtree).  openTSNE switches to FFT-accelerated
 //! interpolation above 10,000 points; that is not implemented here yet.
 
-use crate::knn::{Knn, knn_exact};
-use crate::par;
-use crate::pca::pca;
-use crate::points::Points;
-use crate::rng::Rng;
-use crate::scalerank::{Init, Progress};
+use scalerank::knn::{Knn, knn_exact};
+use scalerank::par;
+use scalerank::pca::pca;
+use scalerank::points::Points;
+use scalerank::rng::Rng;
+use scalerank::scalerank::{Init, Progress};
 
 #[derive(Clone, Debug)]
 pub struct TsneParams {

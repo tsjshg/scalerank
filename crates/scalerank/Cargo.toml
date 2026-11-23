@@ -1,6 +1,6 @@
 [package]
-name = "scalerank-core"
-description = "ScaleRank dimensionality reduction: N^2-free rank structures and optimiser"
+name = "scalerank"
+description = "ScaleRank dimensionality reduction: neighbour ranks over a range of scales, without N x N structures"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

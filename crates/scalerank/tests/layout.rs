@@ -1,5 +1,5 @@
-use scalerank_core::points::sqdist;
-use scalerank_core::{Init, Params, Points, Rng, fit};
+use scalerank::points::sqdist;
+use scalerank::{Init, Params, Points, Rng, fit};
 
 /// R_NX(k) by brute force: rescaled mean overlap of the k-NN sets.
 fn rnx(x: &[f32], dx: usize, y: &[f64], dy: usize, n: usize, k: usize) -> f64 {

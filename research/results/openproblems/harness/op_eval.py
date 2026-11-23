@@ -112,7 +112,7 @@ def scalerank(n_hvg=1000, n_pcs=50, dens_all=0, dens_pcs=-1, seed=42, **kw):
     (-1: n_pcs; 0: no PCA, exact neighbours on the sparse matrix); the ranks still
     come from the HVG input."""
     def run(adata):
-        import scalerank_rs
+        import scalerank
 
         pc = lambda X, k=n_pcs: np.ascontiguousarray(sc.tl.pca(X, n_comps=k, svd_solver="arpack"), dtype=np.float64)
         Z = _cached((id(adata), "Z", n_hvg, n_pcs), lambda: pc(hvg_matrix(adata, n_hvg) if n_hvg else adata.layers["normalized"]))
@@ -121,7 +121,7 @@ def scalerank(n_hvg=1000, n_pcs=50, dens_all=0, dens_pcs=-1, seed=42, **kw):
             X, k = adata.layers["normalized"], int(kw.get("dens_k", 30))
             kp = n_pcs if dens_pcs < 0 else dens_pcs
             target = _cached((id(adata), "t", kp, k), lambda: log_radii(sp.csr_matrix(X) if kp == 0 else pc(X, kp), k))
-        return scalerank_rs.ScaleRankFast(random_state=seed, **kw).fit_transform(Z, dens_target=target)
+        return scalerank.ScaleRank(random_state=seed, **kw).fit_transform(Z, dens_target=target)
 
     return run
 

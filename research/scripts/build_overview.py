@@ -3,8 +3,9 @@
 Pulls the numbers the charts need from drbench's ``results/`` and injects
 them into ``research/docs/overview_template_en.html`` (English) and
 ``research/docs/overview_template.html`` (Japanese), writing the published
-pages ``web/public/docs/index.html`` and ``web/public/docs/ja.html``
-(``--out`` writes them elsewhere).
+pages ``web/public/docs/index.html`` and ``web/public/docs/ja.html`` of a
+scalerank-web checkout next to this repository (``--out`` writes them
+elsewhere).
 
 Needed runs (``drbench run -m ...``, with this package installed): the
 baselines, the current ScaleRank default at gamma 1/0.5/0, and the first
@@ -34,7 +35,7 @@ from drbench.metrics import local_radius
 from drbench.runner import RESULTS_DIR, _paths, load_results, summarize
 
 ROOT = Path(__file__).resolve().parents[1]  # research/
-PUBLISHED = ROOT.parent / "web" / "public" / "docs"
+PUBLISHED = ROOT.parent.parent / "scalerank-web" / "web" / "public" / "docs"  # the app serves them
 BASE = ["pca", "mds", "tsne", "umap", "densmap", "pacmap", "trimap"]
 FIRST = "hard=0.3,n_neg=1,per_point=32"  # the first prototype: triplets + hard negatives
 # Short keys used by the page -> drbench method specs.
@@ -147,7 +148,7 @@ def stability_data():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", type=Path, default=PUBLISHED, help="where to write index.html and ja.html (default: web/public/docs)")
+    ap.add_argument("--out", type=Path, default=PUBLISHED, help="where to write index.html and ja.html (default: ../scalerank-web/web/public/docs)")
     args = ap.parse_args()
     table = summarize(load_results()).reset_index()
     summary = {}

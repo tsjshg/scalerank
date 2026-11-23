@@ -4,6 +4,3 @@ __pycache__/
 *.pyd
 .venv/
 dist/
-/web/node_modules
-/web/dist
-/web/src/wasm

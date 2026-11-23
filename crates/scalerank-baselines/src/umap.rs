@@ -7,11 +7,11 @@
 //! spectral, and the SGD runs serially with one random stream, so results
 //! are reproducible but not identical to umap-learn's.
 
-use crate::knn::{Knn, knn_exact};
-use crate::pca::pca;
-use crate::points::Points;
-use crate::rng::Rng;
-use crate::scalerank::{Init, Progress};
+use scalerank::knn::{Knn, knn_exact};
+use scalerank::pca::pca;
+use scalerank::points::Points;
+use scalerank::rng::Rng;
+use scalerank::scalerank::{Init, Progress};
 
 #[derive(Clone, Debug)]
 pub struct UmapParams {

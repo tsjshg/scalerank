@@ -1,5 +1,8 @@
-//! Python bindings of scalerank-core, so drbench can run and score the Rust
-//! implementation next to its Python prototype.
+//! Python bindings of the scalerank crate (the `scalerank._core` module
+//! behind the `scalerank` package): the ScaleRank estimator, kNN, rank
+//! estimates and the quality metrics. With the `baselines` feature it also
+//! exposes the Rust UMAP and t-SNE, for the research scripts; the published
+//! wheel leaves them out.
 
 #![allow(clippy::type_complexity)]
 
@@ -8,11 +11,11 @@ use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2}
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use scalerank_core::eval;
-use scalerank_core::knn::knn_exact;
-use scalerank_core::nndescent::{NnDescentParams, knn_nndescent};
-use scalerank_core::ranks::RankTable;
-use scalerank_core::{Init, Params, Points, Rng};
+use scalerank::eval;
+use scalerank::knn::knn_exact;
+use scalerank::nndescent::{NnDescentParams, knn_nndescent};
+use scalerank::ranks::RankTable;
+use scalerank::{Init, Params, Points, Rng};
 
 fn to_f32(x: &PyReadonlyArray2<f64>) -> (Vec<f32>, usize, usize) {
     let a = x.as_array();
@@ -34,9 +37,14 @@ fn parse_init(init: &str) -> PyResult<Init> {
     }
 }
 
-/// ScaleRank with N^2-free rank tables; same parameters as drbench's ScaleRankFast.
-#[pyclass(module = "scalerank_rs")]
-struct ScaleRankFast {
+/// ScaleRank: a 2-D (or n_components-D) embedding that preserves neighbour
+/// ranks over a range of scales, weighted by p(K) ~ K^-gamma, with N^2-free
+/// rank tables. `fit_transform(x)` returns the embedding; after it,
+/// `loss_history_`, `table_len_` and `dens_corr_` (correlation of the
+/// embedding's local radii with the target's, NaN without the density term)
+/// describe the fit.
+#[pyclass(module = "scalerank")]
+struct ScaleRank {
     params: Params,
     verbose: bool,
     #[pyo3(get)]
@@ -48,7 +56,7 @@ struct ScaleRankFast {
 }
 
 #[pymethods]
-impl ScaleRankFast {
+impl ScaleRank {
     #[new]
     #[pyo3(signature = (
         gamma=1.0, k0=None, width=1.0, n_components=2, n_epochs=800, per_point=8, n_neg=20,
@@ -113,7 +121,7 @@ impl ScaleRankFast {
             dens_own,
             dens_refresh,
         };
-        Ok(ScaleRankFast { params, verbose, loss_history_: Vec::new(), table_len_: 0.0, dens_corr_: f64::NAN })
+        Ok(ScaleRank { params, verbose, loss_history_: Vec::new(), table_len_: 0.0, dens_corr_: f64::NAN })
     }
 
     /// `dens_target`: local log radii (one per point) for the density term,
@@ -139,7 +147,7 @@ impl ScaleRankFast {
         }
         let verbose = self.verbose;
         let fit = py.detach(|| {
-            scalerank_core::fit(&Points::new(&data, n, d), &params, |pr| {
+            scalerank::fit(&Points::new(&data, n, d), &params, |pr| {
                 if verbose && (pr.epoch == 1 || pr.epoch % 50 == 0) {
                     eprintln!("epoch {:4}  loss {:.4}", pr.epoch, pr.loss);
                 }
@@ -155,6 +163,7 @@ impl ScaleRankFast {
     }
 }
 
+#[cfg(feature = "baselines")]
 /// UMAP (umap-learn's defaults, PCA initialisation).
 #[pyfunction]
 #[pyo3(signature = (x, n_neighbors=15, min_dist=0.1, spread=1.0, n_components=2, n_epochs=None, learning_rate=1.0, negative_sample_rate=5, init="pca", random_state=None))]
@@ -174,7 +183,7 @@ fn umap<'py>(
 ) -> PyResult<Bound<'py, PyArray2<f64>>> {
     let (data, n, d) = to_f32(&x);
     let init = parse_init(init)?;
-    let params = scalerank_core::umap::UmapParams {
+    let params = scalerank_baselines::umap::UmapParams {
         n_neighbors,
         min_dist,
         spread,
@@ -186,10 +195,11 @@ fn umap<'py>(
         init,
         seed: seed_or_clock(random_state),
     };
-    let fit = py.detach(|| scalerank_core::umap::fit(&Points::new(&data, n, d), &params, |_| true));
+    let fit = py.detach(|| scalerank_baselines::umap::fit(&Points::new(&data, n, d), &params, |_| true));
     Ok(Array2::from_shape_vec((n, n_components), fit.embedding).expect("shape").into_pyarray(py))
 }
 
+#[cfg(feature = "baselines")]
 /// t-SNE (openTSNE's defaults, Barnes-Hut repulsion), 2-D.
 #[pyfunction]
 #[pyo3(signature = (x, perplexity=30.0, early_exaggeration_iter=250, early_exaggeration=12.0, n_iter=500, exaggeration=1.0, learning_rate=None, theta=0.5, init="pca", random_state=None))]
@@ -208,7 +218,7 @@ fn tsne<'py>(
     random_state: Option<u64>,
 ) -> PyResult<Bound<'py, PyArray2<f64>>> {
     let (data, n, d) = to_f32(&x);
-    let params = scalerank_core::tsne::TsneParams {
+    let params = scalerank_baselines::tsne::TsneParams {
         perplexity,
         early_exaggeration_iter,
         early_exaggeration,
@@ -220,10 +230,11 @@ fn tsne<'py>(
         seed: seed_or_clock(random_state),
         ..Default::default()
     };
-    let y = py.detach(|| scalerank_core::tsne::fit(&Points::new(&data, n, d), &params, |_| true));
+    let y = py.detach(|| scalerank_baselines::tsne::fit(&Points::new(&data, n, d), &params, |_| true));
     Ok(Array2::from_shape_vec((n, 2), y).expect("shape").into_pyarray(py))
 }
 
+#[cfg(feature = "baselines")]
 /// UMAP's fuzzy graph as COO arrays (rows, cols, weights), both directions.
 #[pyfunction]
 #[pyo3(signature = (x, n_neighbors=15))]
@@ -235,7 +246,7 @@ fn umap_graph<'py>(
     let (data, n, d) = to_f32(&x);
     let g = py.detach(|| {
         let p = Points::new(&data, n, d);
-        scalerank_core::umap::fuzzy_graph(&knn_exact(&p, None, n_neighbors - 1), n, n_neighbors)
+        scalerank_baselines::umap::fuzzy_graph(&knn_exact(&p, None, n_neighbors - 1), n, n_neighbors)
     });
     let rows: Vec<i64> = g.iter().map(|e| e.0 as i64).collect();
     let cols: Vec<i64> = g.iter().map(|e| e.1 as i64).collect();
@@ -296,7 +307,7 @@ fn rank_estimates<'py>(
         let t = RankTable::build(&p, &knn_exact(&p, None, kmax), kmax, r_pool, pool_ratio, pool_per_level, &mut Rng::new(seed));
         i.iter()
             .zip(&j)
-            .map(|(&a, &b)| t.rank_of(a as usize, scalerank_core::points::dist(p.row(a as usize), p.row(b as usize))) as f64)
+            .map(|(&a, &b)| t.rank_of(a as usize, scalerank::points::dist(p.row(a as usize), p.row(b as usize))) as f64)
             .collect::<Vec<f64>>()
     });
     est.into_pyarray(py)
@@ -365,13 +376,17 @@ fn evaluate<'py>(
 }
 
 #[pymodule]
-fn scalerank_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<ScaleRankFast>()?;
+fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    m.add_class::<ScaleRank>()?;
     m.add_function(wrap_pyfunction!(knn, m)?)?;
     m.add_function(wrap_pyfunction!(rank_estimates, m)?)?;
     m.add_function(wrap_pyfunction!(evaluate, m)?)?;
-    m.add_function(wrap_pyfunction!(umap, m)?)?;
-    m.add_function(wrap_pyfunction!(umap_graph, m)?)?;
-    m.add_function(wrap_pyfunction!(tsne, m)?)?;
+    #[cfg(feature = "baselines")]
+    {
+        m.add_function(wrap_pyfunction!(umap, m)?)?;
+        m.add_function(wrap_pyfunction!(umap_graph, m)?)?;
+        m.add_function(wrap_pyfunction!(tsne, m)?)?;
+    }
     Ok(())
 }

@@ -1,6 +1,6 @@
 [package]
 name = "scalerank-py"
-description = "Python bindings of scalerank-core, for validation against drbench"
+description = "Python bindings of scalerank (the scalerank package on PyPI)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,10 +8,15 @@ repository.workspace = true
 publish = false
 
 [lib]
-name = "scalerank_rs"
+name = "_core"
 crate-type = ["cdylib"]
 
+[features]
+# the Rust UMAP and t-SNE, for the research scripts; not in the published wheel
+baselines = ["dep:scalerank-baselines"]
+
 [dependencies]
-scalerank-core = { path = "../scalerank-core" }
+scalerank = { path = "../scalerank" }
+scalerank-baselines = { path = "../scalerank-baselines", optional = true }
 pyo3 = "0.30"
 numpy = "0.30"

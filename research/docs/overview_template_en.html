@@ -195,7 +195,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <p class="lede">I revisited MADR, the multi-agent approach to dimensionality reduction I started in 2020, rebuilt the yardstick for comparing methods, and then prototyped a new method, ScaleRank: rank preservation at scales you can specify. This page explains, with figures, how I investigated the outlier problem found in the first version, rebuilt the loss function in a softmax form, scaled it to 70,000 points with a version that avoids N², and turned it into a browser app with Rust and WebAssembly, together with the results.</p>
     <div class="meta">
       <span>As of 20 November 2026</span>
-      <span>Research code: <a href="https://github.com/tsjshg/scalerank-web/tree/main/research" target="_blank" rel="noopener">scalerank-web/research</a></span>
+      <span>Research code: <a href="https://github.com/tsjshg/scalerank/tree/main/research" target="_blank" rel="noopener">scalerank/research</a></span>
       <span>Benchmark: <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">github.com/tsjshg/drbench</a></span>
       <span>App: <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a></span>
       <span><a href="ja.html" hreflang="ja" lang="ja">日本語</a></span>
@@ -858,14 +858,15 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <section id="repro" aria-labelledby="h-repro">
   <div class="col sec-head"><span class="eyebrow">Appendix</span><h2 id="h-repro">How to reproduce</h2></div>
   <div class="col">
-    <p>Put the benchmark <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">tsjshg/drbench</a> next to <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a>, whose <code>research/</code> folder holds the Python versions of ScaleRank and the research scripts; the commands below reproduce the results. The original 2020 pickle files are assumed to be in drbench's parent folder. Work up to November 2026 was done on drbench's <code>proto/scalerank</code> branch (tag <code>scalerank-prototype-2026-11</code>).</p>
+    <p>Put the benchmark <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">tsjshg/drbench</a> next to <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">tsjshg/scalerank</a>, whose <code>research/</code> folder holds the Python versions of ScaleRank and the research scripts; the commands below reproduce the results. The original 2020 pickle files are assumed to be in drbench's parent folder. Work up to November 2026 was done on drbench's <code>proto/scalerank</code> branch (tag <code>scalerank-prototype-2026-11</code>).</p>
 <pre><code>git clone https://github.com/tsjshg/drbench
-git clone https://github.com/tsjshg/scalerank-web
+git clone https://github.com/tsjshg/scalerank
+git clone https://github.com/tsjshg/scalerank-web   # only to rebuild this page
 cd drbench
 uv sync
-uv pip install -e ../scalerank-web/research           # registers ScaleRank as drbench methods
-uv pip install ../scalerank-web/crates/scalerank-py   # Rust versions (scalerank_rs, tsne_rs, umap_rs)
-R=../scalerank-web/research/scripts
+uv pip install -e ../scalerank/research               # registers ScaleRank as drbench methods
+MATURIN_PEP517_ARGS="--features baselines" uv pip install ../scalerank/crates/scalerank-py   # Rust versions (scalerank_rs, tsne_rs, umap_rs)
+R=../scalerank/research/scripts
 
 uv run python scripts/convert_legacy.py      # 2020 pickles → data/raw/*.npz
 uv run drbench run                           # existing methods (8 datasets × 3 seeds)
@@ -902,11 +903,11 @@ uv run python scripts/stability.py \
 
 # this page (written to scalerank-web's web/public/docs)
 uv run python $R/build_overview.py</code></pre>
-    <p>The code for the Rust version and the app is also in <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a>.</p>
+    <p>The Rust version is in <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">tsjshg/scalerank</a> and the app in <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a>.</p>
   </div>
 </section>
 
-<footer class="col">This page is generated from the drbench results by scalerank-web's <code>research/scripts/build_overview.py</code>. All numbers are as of 20 November 2026.</footer>
+<footer class="col">This page is generated from the drbench results by scalerank's <code>research/scripts/build_overview.py</code>. All numbers are as of 20 November 2026.</footer>
 </main>
 
 <script type="application/json" id="data">/*__DATA__*/</script>

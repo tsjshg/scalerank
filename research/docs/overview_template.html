@@ -195,7 +195,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <p class="lede">2020年に始めたマルチエージェント型の次元削減（MADR）を見直し、比較の物差しを作り直したうえで、「守るスケールを指定できる順位保存」という新しい手法 ScaleRank を試作しました。最初の版で見つかった外れ点の問題を調べて損失関数をソフトマックス型に作り直し、N² を使わない版で 7 万点まで広げ、Rust と WebAssembly でブラウザアプリにするまでの経緯と結果を、図で説明します。</p>
     <div class="meta">
       <span>2026年11月20日時点</span>
-      <span>研究コード: <a href="https://github.com/tsjshg/scalerank-web/tree/main/research" target="_blank" rel="noopener">scalerank-web/research</a></span>
+      <span>研究コード: <a href="https://github.com/tsjshg/scalerank/tree/main/research" target="_blank" rel="noopener">scalerank/research</a></span>
       <span>ベンチマーク: <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">github.com/tsjshg/drbench</a></span>
       <span>アプリ: <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a></span>
       <span><a href="index.html" hreflang="en" lang="en">English</a></span>
@@ -858,14 +858,15 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 <section id="repro" aria-labelledby="h-repro">
   <div class="col sec-head"><span class="eyebrow">付録</span><h2 id="h-repro">再現方法</h2></div>
   <div class="col">
-    <p>ベンチマーク <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">tsjshg/drbench</a> と、<a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a> の <code>research/</code>（ScaleRank の Python 版と研究用スクリプト）を並べて置き、次のコマンドで再現できます。2020年の元データの pickle は drbench の親フォルダにある前提です。2026年11月までの作業は drbench の <code>proto/scalerank</code> ブランチ（タグ <code>scalerank-prototype-2026-11</code>）で行いました。</p>
+    <p>ベンチマーク <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">tsjshg/drbench</a> と、<a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">tsjshg/scalerank</a> の <code>research/</code>（ScaleRank の Python 版と研究用スクリプト）を並べて置き、次のコマンドで再現できます。2020年の元データの pickle は drbench の親フォルダにある前提です。2026年11月までの作業は drbench の <code>proto/scalerank</code> ブランチ（タグ <code>scalerank-prototype-2026-11</code>）で行いました。</p>
 <pre><code>git clone https://github.com/tsjshg/drbench
-git clone https://github.com/tsjshg/scalerank-web
+git clone https://github.com/tsjshg/scalerank
+git clone https://github.com/tsjshg/scalerank-web   # このページを作り直すときだけ
 cd drbench
 uv sync
-uv pip install -e ../scalerank-web/research           # ScaleRank を drbench の手法として登録
-uv pip install ../scalerank-web/crates/scalerank-py   # Rust 版（scalerank_rs, tsne_rs, umap_rs）
-R=../scalerank-web/research/scripts
+uv pip install -e ../scalerank/research               # ScaleRank を drbench の手法として登録
+MATURIN_PEP517_ARGS="--features baselines" uv pip install ../scalerank/crates/scalerank-py   # Rust 版（scalerank_rs, tsne_rs, umap_rs）
+R=../scalerank/research/scripts
 
 uv run python scripts/convert_legacy.py      # 2020年の pickle → data/raw/*.npz
 uv run drbench run                           # 既存手法（8データ × 3 seed）
@@ -902,11 +903,11 @@ uv run python scripts/stability.py \
 
 # このページ（scalerank-web の web/public/docs に書き出す）
 uv run python $R/build_overview.py</code></pre>
-    <p>Rust 版とアプリのコードも <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a> にあります。</p>
+    <p>Rust 版は <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">tsjshg/scalerank</a>、アプリは <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a> にあります。</p>
   </div>
 </section>
 
-<footer class="col">このページは scalerank-web の <code>research/scripts/build_overview.py</code> で drbench の結果から生成しています。数値は 2026年11月20日時点のものです。</footer>
+<footer class="col">このページは scalerank の <code>research/scripts/build_overview.py</code> で drbench の結果から生成しています。数値は 2026年11月20日時点のものです。</footer>
 </main>
 
 <script type="application/json" id="data">/*__DATA__*/</script>

@@ -1,0 +1,15 @@
+[package]
+name = "scalerank-baselines"
+description = "UMAP and Barnes-Hut t-SNE on scalerank's kNN and PCA, for comparison in the browser app and the research scripts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+default = ["parallel"]
+parallel = ["scalerank/parallel"]
+
+[dependencies]
+scalerank = { path = "../scalerank", default-features = false }

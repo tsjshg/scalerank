@@ -39,7 +39,7 @@ as, what an official submission would give.
 - **Methods:** as in the task. Input is `layers['normalized']`, top 1,000 genes by `var['hvg_score']`.
   - `umap`: umap-learn on the HVGs, `random_state=42`. This is the task's default.
   - `tsne`: scanpy t-SNE on PCA-50 of the 1,000 HVGs. This is **not** the task's default, which uses all genes. That run is `task:tsne` in `runs/hvg/`.
-  - `scalerank_g1`: `scalerank_rs.ScaleRankFast(gamma=1.0, random_state=42)` on PCA-50 of the HVGs (`sc.tl.pca`, arpack).
+  - `scalerank_g1`: `scalerank.ScaleRank(gamma=1.0, random_state=42)` on PCA-50 of the HVGs (`sc.tl.pca`, arpack).
   - `scalerank_g1_ns0.5`: the same with `neg_scale=0.5`.
   - `scalerank_g0.5`: the same with `gamma=0.5`. Small datasets only.
 - **Metrics:**
@@ -356,7 +356,7 @@ that cover all four datasets.
 
 ```bash
 # Python 3.12 with: anndata scanpy umap-learn pynndescent leidenalg igraph scikit-learn
-# plus scalerank_rs (uv pip install ../../../crates/scalerank-py)
+# plus scalerank (uv pip install ../../../crates/scalerank-py)
 python harness/op_eval.py DATA/<dataset> runs/<dataset>.csv umap tsne scalerank_g1 scalerank_g1_ns0.5
 SKIP_SPECTRAL=1 python harness/op_eval.py ...    # skips the spectral metric
 python harness/summarize.py

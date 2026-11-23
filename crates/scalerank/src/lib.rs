@@ -14,8 +14,6 @@ pub mod prep;
 pub mod ranks;
 pub mod rng;
 pub mod scalerank;
-pub mod tsne;
-pub mod umap;
 
 pub use points::Points;
 pub use rng::Rng;

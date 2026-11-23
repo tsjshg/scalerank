@@ -1,4 +1,4 @@
-"""Do the Rust implementations (scalerank-web, via scalerank_rs) match the references?
+"""Do the Rust implementations (the scalerank package) match the references?
 
 Mean over seeds, then over the 8 benchmark datasets, of (Rust - reference)
 for each pair below, plus the mean run time of each.

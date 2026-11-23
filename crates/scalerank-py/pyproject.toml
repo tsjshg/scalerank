@@ -3,12 +3,23 @@ requires = ["maturin>=1.9,<2"]
 build-backend = "maturin"
 
 [project]
-name = "scalerank-rs"
-description = "Python bindings of scalerank-core, for validation against drbench"
+name = "scalerank"
+description = "ScaleRank dimensionality reduction: neighbour ranks over a range of scales, in Rust"
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["numpy"]
 dynamic = ["version"]
+keywords = ["dimensionality reduction", "embedding", "visualisation", "single-cell"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.urls]
+Repository = "https://github.com/tsjshg/scalerank"
 
 [tool.maturin]
-module-name = "scalerank_rs"
-features = ["pyo3/extension-module"]
+module-name = "scalerank._core"
+python-source = "python"
+features = ["pyo3/extension-module", "pyo3/abi3-py310"]

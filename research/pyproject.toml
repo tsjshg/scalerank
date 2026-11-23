@@ -14,8 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# the Rust ports (scalerank_rs, tsne_rs, umap_rs): build ../crates/scalerank-py into the same environment
-rust = ["scalerank-rs"]
+# the Rust versions (scalerank_rs, tsne_rs, umap_rs): build ../crates/scalerank-py into the same
+# environment, with MATURIN_PEP517_ARGS="--features baselines" for tsne_rs and umap_rs
+rust = ["scalerank"]
 
 [project.entry-points."drbench.methods"]
 scalerank = "scalerank_research.methods"
