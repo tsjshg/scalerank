@@ -2,17 +2,49 @@
 
 [日本語](README_ja.md)
 
-A dimensionality reduction that preserves neighbour **ranks** over a range of
-scales. For each point it samples a neighbourhood size K with probability
-proportional to K^−γ, one point inside that neighbourhood and several outside
-it, and moves the map so the inside point ends up closer. γ = 0 weights all
-sizes equally and favours the global layout; larger γ concentrates on small
-neighbourhoods and favours local detail. Exact ranks come from each point's
-nearest neighbours and larger ranks are estimated from random subsamples, so
-nothing is N × N.
+**Maps you can read at every scale: the neighbourhoods inside each cluster,
+and how the clusters sit relative to each other.**
 
-An optional density term, after densMAP, also matches each point's local
-radius to the data's; rank losses alone are blind to local scale.
+t-SNE and UMAP keep each point's close neighbours. But the distances and the
+arrangement between clusters in their maps should not be read
+([Chari & Pachter 2023](https://doi.org/10.1371/journal.pcbi.1011288)). PCA
+keeps the arrangement but blurs the neighbourhoods. ScaleRank keeps both:
+
+- **Not beaten on both counts.** On all 8 datasets of
+  [drbench](https://github.com/tsjshg/drbench), no other method was better on
+  both local and global quality. This includes t-SNE and UMAP tuned over 30
+  settings.
+- **Global layout, kept.** The distance correlation between data and map is
+  0.79, against 0.52 for t-SNE and 0.37 for UMAP. Local neighbour preservation
+  is close to t-SNE's (0.51 vs 0.54).
+- **A layout that comes from the data, not from the seed.** Maps from
+  different random seeds agree on the global layout at 0.97, against 0.78 for
+  UMAP.
+- **Density too, if you want it.** With the optional density term, ScaleRank
+  also keeps how tightly points pack. On the Open Problems
+  dimensionality-reduction task it scored 0.491, above every baseline we
+  reran in the same harness: densMAP 0.452, t-SNE 0.412, UMAP 0.373
+  ([details](research/results/openproblems/README.md)).
+
+On local quality alone t-SNE is still slightly ahead, and the gap widens at
+70,000 points.
+
+### How it works
+
+ScaleRank preserves neighbour **ranks** over a range of scales.
+
+1. For each point, it samples a neighbourhood size K with probability
+   proportional to K^−γ.
+2. It takes one point inside that neighbourhood and several outside it.
+3. It moves the map so the inside point ends up closer than the outside ones.
+
+γ = 0 weights all sizes equally and favours the global layout; larger γ
+concentrates on small neighbourhoods and favours local detail. Exact ranks
+come from each point's nearest neighbours, and larger ranks are estimated from
+random subsamples, so nothing is N × N.
+
+Rank losses alone are blind to local scale. The density term, after densMAP,
+matches each point's local radius to the data's.
 
 - Browser app: <https://tsjshg.github.io/scalerank-web/> ([source](https://github.com/tsjshg/scalerank-web))
 - Research notes: <https://tsjshg.github.io/scalerank-web/docs/>
